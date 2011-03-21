@@ -6,7 +6,7 @@
         checkTagTables
         
         if !checkImageTable
-            raise 'No image database was found'
+            puts 'No image database was found'
         end
         
         # Required plugin stuff
