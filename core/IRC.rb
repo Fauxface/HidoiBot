@@ -284,7 +284,13 @@ class IRC
             when 'PONG'
                 handlePong(data)
             when 'PRIVMSG'
-                @replyChannel = data["channel"]
+                # Handle private messages
+                if data["channel"] == @nickname
+                    @replyChannel = data["sender"]
+                else
+                    @replyChannel = data["channel"]
+                end
+                
                 handleProcessEvery(data)
                 triggerDetection(data)
                 ctcpDetection(data)
