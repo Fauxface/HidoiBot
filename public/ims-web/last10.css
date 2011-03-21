@@ -1,0 +1,105 @@
+@font-face {
+	font-family: 'ChunkFiveRoman';
+	src: url('chunkfive-webfont.eot');
+	src: local('?'), url('chunkfive-webfont.woff') format('woff'), url('chunkfive-webfont.ttf') format('truetype'), url('chunkfive-webfont.svg#webfontqxLrlkfR') format('svg');
+	font-weight: normal;
+	font-style: normal;
+	}
+	
+a:link {
+	color: #456;
+}
+
+a:visited {
+	color: #346;
+}
+
+a:hover {
+	color: #333;
+}
+
+::selection {
+	background:#900;
+	color:#fff;
+}
+
+::-moz-selection{
+	background:#900;
+	color:#fff;
+}
+
+body {
+	margin-right: auto;
+	margin-left: auto;
+	text-align: center;
+	background-color: #FFF;
+	font-family: Helvetica, Arial;
+	width: 80%;
+}
+
+.titletext{
+	text-align: left;
+	font-weight: normal;
+	font-style: normal;
+	line-height: normal;
+	font-family: 'ChunkFiveRoman', sans-serif;
+	font-size-adjust: 0.5;
+	font-size: 48px;	
+}
+
+.headertext{
+	font-size: 18px;
+	margin-top: -10px;
+	margin-bottom: 10px;
+}
+
+.boticontext {
+	font-family: 'ChunkFiveRoman', sans-serif;
+}
+
+.flavourtext{
+	font-size: 11px;
+}
+
+.images {
+    height: 250px;
+	width: auto;
+	border-style: none;
+	}
+	
+.imgdiv {
+	float: left;
+    max-width: 90%;
+    overflow: hidden;
+	margin-top: 3px;
+	margin-bottom: 11px;
+	margin-left: 10px;
+	-moz-box-shadow: 3px 3px 3px #666;
+	-webkit-box-shadow: 3px 3px 3px #666;
+	box-shadow: 3px 3px 3px #666;
+}
+
+.memetable {
+	margin-left: auto;
+	margin-right: auto;
+	text-align: center;
+}
+
+.memeouterdiv {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.memetext {
+	font-family: Impact;
+	font-size: 28px;
+}
+
+#footer {
+	text-align: right;
+	color: #AAA;
+	border-top: 1px solid #CCC;
+	height: 35px;
+	margin-top: 7px;
+	clear:both
+}
