@@ -76,4 +76,4 @@ To add plugins:
     For most plugins, dump the plugin.rb file in 'BotPlugins' and it'll work fine.
     
 To change plugin auth level:
-    Open the file with the plugin you wish to modify the required authorisation level for and search for instances of 'requiredLevel' or authCheck.    
+    Open the file of the plugin you wish to modify authlevels for and search for auth level settings in initialize. If that fails, look for instances of 'requiredLevel' or authCheck.
