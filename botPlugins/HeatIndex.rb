@@ -9,8 +9,8 @@
     end
 
     def main(data)
-        tempC = arguments[0]
-        humidity = arguments[1]
+        tempC = arguments(data)[0]
+        humidity = arguments(data)[1]
         return "say '#{calcHeatIndex(tempC, humidity)}'"
     rescue => e
         handleError(e)
