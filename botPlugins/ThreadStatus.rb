@@ -19,7 +19,6 @@
     def threadInfo()
         requiredAuth = 3
         if authCheck(requiredAuth)
-            puts 'dsfsdfs'
             rs = ''
             Thread.list.map {|x|
                 #rs = rs + "#{x.inspect}: #{x[:name]}\n"

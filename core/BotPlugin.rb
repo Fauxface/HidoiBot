@@ -145,7 +145,7 @@ class BotPlugin
         if second >= 1 && trailingSecond > 0
             humanDate.push("#{trailingSecond} #{unitSecond}")
         elsif second == 0
-            humanDate.push("#{sec} #{unitSecond}")
+            humanDate.push("#{second} #{unitSecond}")
         end
 
         return humanDate.join(", ")      

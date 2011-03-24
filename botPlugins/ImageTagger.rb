@@ -118,9 +118,6 @@
         tagId = sql("SELECT rowid FROM tag WHERE name='#{tag}'")[0][0]
         imageRowIds = sql("SELECT image_id FROM image_tag WHERE tag_id='#{tagId}'")
         
-        puts imageRowIds.class
-        puts imageRowIds.inspect
-        
         if imageRowIds.class == Array
             imageRowIds.each{ |imageRowId|
                 imageHashes.push(sql("SELECT sha256 FROM image WHERE rowid='#{imageRowId[0]}'")[0][0])

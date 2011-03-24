@@ -28,7 +28,6 @@ class DaysUntilDate < BotPlugin
             month = date[2..3]
             year = "20#{date[4..5]}"
             combinedDate = "#{day}/#{month}/#{year}"
-            puts Date.parse(combinedDate).inspect
             return Date.parse(combinedDate)
         end
     end
