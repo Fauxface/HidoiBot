@@ -8,7 +8,7 @@ class MpcSync < BotPlugin
     def initialize
         # Settings
         # Address of MPC's Web UI
-        @mpcPlayerAddress = 'http://127.0.0.1:13579'
+        @mpcPlayerAddress = 'http://192.168.1.42:13579'
         @mpcCommandAddress = @mpcPlayerAddress + '/command.html'
         @mpcPlayingAddress = @mpcPlayerAddress + '/controls.html'
         
@@ -35,6 +35,7 @@ class MpcSync < BotPlugin
         @isNotCockedMessage = 'Definitely not long and ready.'
         @syncingMessage = "Syncing in #{@syncDelay} seconds..."
         @cannotGetNpMessage = 'Could not obtain MPC information. Is MPC running with WebUI active?'
+        @butCannotGetNpMessage = 'However, MPC is not running.'
         @playingMessage = 'Playing.'
         
         # Required plugin stuff
@@ -68,7 +69,13 @@ class MpcSync < BotPlugin
                     mpcListen if @cocked == false
                     @cocked = true
                     @cockedChannel = data["channel"]
-                    return sayf(@cockedMessage)
+                    nowPlayingInfo = nowPlaying
+                    
+                    if nowPlayingInfo == @cannotGetNpMessage
+                        return sayf(@cockedMessage + ' ' + @butCannotGetNpMessage)
+                    else
+                        return sayf(@cockedMessage + ' ' + nowPlayingInfo)
+                    end
                 else
                     return sayf(@notAuthorisedMessage)
                 end
