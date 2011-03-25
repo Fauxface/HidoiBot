@@ -8,7 +8,7 @@ class MpcSync < BotPlugin
     def initialize
         # Settings
         # Address of MPC's Web UI
-        @mpcPlayerAddress = 'http://192.168.1.42:13579'
+        @mpcPlayerAddress = 'http://127.0.0.1:13579'
         @mpcCommandAddress = @mpcPlayerAddress + '/command.html'
         @mpcPlayingAddress = @mpcPlayerAddress + '/controls.html'
         
