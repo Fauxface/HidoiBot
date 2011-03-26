@@ -413,8 +413,8 @@ class IRC
         end
         
         eval(returnData) if returnData != nil
-    rescue SyntaxError => se
-        say "#{plugin}: Syntax error: #{se}"
+    rescue SyntaxError => e
+        say "#{plugin}: Syntax error: #{e}"
         handleError(e)
     rescue => e
         handleError(e)
