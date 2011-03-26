@@ -17,8 +17,13 @@ module Timer
     
     def checkEvents
         @events.each{ |event|
-            if event["time"] < Time.now
-                handleEvent(event) if event != nil
+            begin
+                if event["time"] < Time.now
+                    handleEvent(event) if event != nil
+                end
+            rescue
+                # If malformed event, delete it
+                event["occurrence"] = 'inactive'
             end
         }
         return nil
@@ -30,7 +35,7 @@ module Timer
             when 'pingServer'
                 send "PING #{Time.now.to_f}"
             when 'reminder'
-                sendTo(event["user"], event["message"])
+                sayTo(event["user"], event["message"])
             when 'pingTimeout'
                 puts 'PING TIMEOUT'
                 reconnect
@@ -43,6 +48,7 @@ module Timer
     end
     
     def handleOccurrence(event)
+        puts 'occurrencehandling ' + event["occurrence"]
         case event["occurrence"]
         when 'single'
             event["occurrence"] = 'inactive'
@@ -58,6 +64,12 @@ module Timer
         }
     end
     
+    def deleteEventOccurrence(eventOccurrence)
+        @events.delete_if{ |event|
+            event["occurrence"] == eventOccurrence
+        }
+    end
+    
     def cleanupEvents
         @events.delete_if{ |event|
             event["occurrence"] == 'inactive'
@@ -67,10 +79,19 @@ module Timer
     
     def addEvent(user, type, time, occurrence, occurrenceOffset, *message)
         event = {
+            # Who to remind
             "user" => user,
+            
+            # Type of event, see handleEvent            
             "type" => type,
+            
+            # Time in integer
             "time" => time,
+            
+            # Type of event (single, recurring)
             "occurrence" => occurrence,
+            
+            # Time between recurring events
             "occurrenceOffset" => occurrenceOffset
         }
         
