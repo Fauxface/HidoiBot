@@ -524,18 +524,18 @@ class IRC
             # Not implemented yet
         end
         
-        puts 'user ' + user
-        
         # Checking for authorisation
         if user == 'me' || user == data['sender'] && occurrence != 'recurring'
             # No auth required for single event for self
             user = data['sender']
             puts "#{user}, #{type}, #{parsedTime}, #{occurrenceOffset}, #{message}"
             addEvent(user, type, parsedTime, occurrence, occurrenceOffset, message)
+            say 'Reminder added.'
         elsif checkAuth(data["hostname"]) >= requiredLevelForOthers
             # Auth required for single/recurring event for other people
             puts "#{user}, #{type}, #{parsedTime}, #{occurrenceOffset}, #{message}"
             addEvent(user, type, parsedTime, occurrence, occurrenceOffset, message)
+            say 'Reminder added.'
         elsif checkAuth(data["hostname"]) == 0
             say "You are not authorised for this."
         end
