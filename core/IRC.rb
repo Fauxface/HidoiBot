@@ -411,7 +411,11 @@ class IRC
         if data != nil
             returnData = eval("$#{plugin}.main(data)")
         end
+        
         eval(returnData) if returnData != nil
+    rescue SyntaxError => se
+        say "#{plugin}: Syntax error: #{se}"
+        handleError(e)
     rescue => e
         handleError(e)
     end
