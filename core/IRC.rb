@@ -66,7 +66,9 @@ class IRC
             "quit" => ['quit', 3],
             "restart" => ['restart', 3],
             "reload" => ['reload', 3],
-            "help" => ['getPluginHelp(data)', 0]
+            "help" => ['getPluginHelp(data)', 0],
+            "remind" => ['addReminder(data)', 0],
+            "clearrecurring" => ['clearRecurring', 3]
         }
     end
     
@@ -499,6 +501,76 @@ class IRC
         passwordList
         @authUsers = Hash.new        
     end   
+    
+    # Remind
+    def addReminder(data)
+        requiredLevelForOthers = 3
+        
+        arguments = data["message"].split(/(remind | about | in | every )/)
+        puts arguments.inspect
+        type = 'reminder'
+        user = arguments[2]
+        message = arguments[4]
+        timeRelative = arguments[6]
+        parsedTime = Time.at(parseRemindTime(timeRelative))
+        isRecurring = data["message"].split(/(#{user}|about| #{message} | #{timeRelative})/)[6]
+        
+        # Checking for type
+        if isRecurring == 'every'
+            occurrence = 'recurring'
+            occurrenceOffset = parseRemindTime(timeRelative)
+            parsedTime += Time.now.to_i
+        elsif isRecurring == 'in'
+            occurrence = 'single'
+            occurrenceOffset = 0
+            parsedTime += Time.now.to_i
+        elsif isRecurring == 'at'
+            # Not implemented yet
+        end
+        
+        # Checking for authorisation
+        if user == 'me' || user == data['sender'] && occurrence != 'recurring'
+            # No auth required for single event for self
+            user = data['sender']
+            puts "#{user}, #{type}, #{parsedTime}, #{occurrenceOffset}, #{message}"
+            addEvent(user, type, parsedTime, occurrence, occurrenceOffset, message)
+            say 'Reminder added.'
+        elsif checkAuth(data["hostname"]) >= requiredLevelForOthers
+            # Auth required for single/recurring event for other people
+            puts "#{user}, #{type}, #{parsedTime}, #{occurrenceOffset}, #{message}"
+            addEvent(user, type, parsedTime, occurrence, occurrenceOffset, message)
+            say 'Reminder added.'
+        elsif checkAuth(data["hostname"]) == 0
+            say "You are not authorised for this."
+        end
+    rescue => e
+        say "Error in addReminder: Check syntax."
+        handleError(e)
+    end
+    
+    def clearRecurring
+        say "Clearing recurring events."
+        deleteEventOccurrence('recurring')
+    end
+    
+    def parseRemindTime(time)
+        puts 'time ' + time
+		timeUnit = time[/[a-z]+$/i]
+		timeDigit = time[/[0-9\.]+/]
+
+		if timeUnit == /(s|seconds?|secs?)/
+		elsif timeUnit == /(m|minutes?|mins?)/
+			timeDigit = timeDigit.to_f * 60
+		elsif timeUnit == /(h|hrs?|hours?)/
+			timeDigit = timeDigit.to_f * 60 * 60
+		elsif timeUnit == /(d|days?)/
+			timeDigit = timeDigit.to_f * 24 * 60 * 60
+		end
+		
+        puts 'timedigitparsed ' + timeDigit
+		remindTime = timeDigit.to_i
+        return remindTime
+    end
     
     # Error Handling
     def handleError(error)
