@@ -62,8 +62,6 @@
             end
             
         elsif @tracking == true
-            #escapedMessage = escapeSyntaxHard(data["message"])
-        
             if silentSql("SELECT * FROM stats_channel WHERE name = '#{data["channel"]}' AND server_group = '#{data["serverGroup"]}'")[0] == nil && @tracking == true
                 # If new channel
                 recordNewChannel(data)
