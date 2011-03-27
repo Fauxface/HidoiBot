@@ -135,6 +135,8 @@
                     
                     if daysSinceFirstSeen == 0
                         meanMessagesPerDay = messageCount.to_i
+                    elsif daysSinceFirstSeen > 0
+                        meanMessagesPerDay = messageCount / daysSinceFirstSeen
                     end
                     
                     return ("Stats for channel #{name}:\nLast activity: #{lastActivity}\nMessage count: #{messageCount}, Character count: #{characterCount}, Means: #{meanMessageLength}char/msg, #{meanMessagesPerDay}msg/day\nFirst seen on #{firstSeen}, #{daysSinceFirstSeen} days ago.")
