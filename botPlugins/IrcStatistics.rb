@@ -109,9 +109,11 @@
                     firstSeen = Date.parse(userData[6])
                     daysSinceFirstSeen = (Date.today - firstSeen).to_i
                     meanMessageLength = (characterCount/messageCount).to_i
-
+                    
                     if daysSinceFirstSeen == 0
                         meanMessagesPerDay = messageCount.to_i
+                    elsif daysSinceFirstSeen > 0
+                        meanMessagesPerDay = messageCount / daysSinceFirstSeen
                     end
                     
                     return ("Stats for user #{nickname}:\nLast seen on #{lastMessageTime}, saying \'#{lastMessage}\' in #{lastMessageChannel}\nMessage count: #{messageCount}, Character count: #{characterCount}, Means: #{meanMessageLength}char/msg, #{meanMessagesPerDay}msg/day\nFirst seen on #{firstSeen}, #{daysSinceFirstSeen} days ago.")
