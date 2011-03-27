@@ -23,7 +23,7 @@
         if mode == 'refresh' && authCheck(@reqLatencyRefreshAuth)
             return 'pingServer; say \'Latency refreshed.\''
         elsif mode == 'refresh' && !authCheck(@reqLatencyRefreshAuth)
-            reutrn sayf(@noAuthMessage)
+            return sayf(@noAuthMessage)
         end
             
         if authCheck(@reqLatencyAuth)
