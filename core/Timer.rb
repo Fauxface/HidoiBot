@@ -47,8 +47,7 @@ module Timer
         end
     end
     
-    def handleOccurrence(event)
-        puts 'occurrencehandling ' + event["occurrence"]
+    def handleOccurrence(event)        
         case event["occurrence"]
         when 'single'
             event["occurrence"] = 'inactive'
