@@ -21,7 +21,7 @@
         mode = arguments(data)[0]
         
         if mode == 'refresh' && authCheck(@reqLatencyRefreshAuth)
-            return 'pingServer; say \'Latency refreshed.\''
+            return 'say \'Latency refreshed.\'; pingServer'
         elsif mode == 'refresh' && !authCheck(@reqLatencyRefreshAuth)
             return sayf(@noAuthMessage)
         end
