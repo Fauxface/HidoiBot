@@ -62,7 +62,7 @@
             end
             
         elsif @tracking == true
-            data["message"] = escapeSyntaxHard(data["message"])
+            #escapedMessage = escapeSyntaxHard(data["message"])
         
             if silentSql("SELECT * FROM stats_channel WHERE name = '#{data["channel"]}' AND server_group = '#{data["serverGroup"]}'")[0] == nil && @tracking == true
                 # If new channel
@@ -168,9 +168,10 @@
     end
 
     def recordNewUser(data)
+        escapedMessage = escapeSyntaxHard(data["message"])
         active = true
         messageCount = 1
-        characterCount = data["message"].length
+        characterCount = escapedMessage.length
         activityCount = 1
         
         silentSql ("
@@ -197,7 +198,7 @@
                 '#{data["realname"]}',
                 '#{data["messageType"]}',
                 '#{data["time"]}',
-                '#{data["message"]}',
+                '#{escapedMessage}',
                 '#{data["channel"]}',
                 '#{data["time"]}',
                 '#{messageCount}',
@@ -209,7 +210,8 @@
     end
     
     def updateUser(data)
-        characterCount = data["message"].length
+        escapedMessage = escapeSyntaxHard(data["message"])
+        characterCount = escapedMessage.length
         # Oddly, UPDATE stats_user SET ( ... ) WHERE ( ... ) breaks from the parentheses. I am bad at this
         silentSql ("
             UPDATE stats_user SET
@@ -217,7 +219,7 @@
                 realname = '#{data["realname"]}',
                 last_activity = '#{data["messageType"]}',
                 last_activity_time = '#{data["time"]}',
-                last_message =  '#{data["message"]}',
+                last_message =  '#{escapedMessage}',
                 last_message_channel = '#{data["channel"]}',
                 last_message_time = '#{data["time"]}',
                 message_count = message_count + 1,
@@ -229,6 +231,7 @@
     end
     
     def recordNewChannel(data)
+        escapedMessage = escapeSyntaxHard(data["message"])
         silentSql ("
             INSERT INTO stats_channel (
                 name,
@@ -241,7 +244,7 @@
                 '#{data["channel"]}',
                 '#{data["serverGroup"]}',
                 '1',
-                '#{data["message"].length}',
+                '#{escapedMessage.length}',
                 '#{data["time"]}',
                 '#{data["time"]}'
             )
@@ -249,10 +252,11 @@
     end
     
     def updateChannel(data)
+        escapedMessage = escapeSyntaxHard(data["message"])
         silentSql ("
             UPDATE stats_channel SET 
                 message_count = message_count + 1,
-                character_count = character_count + #{data["message"].length},
+                character_count = character_count + #{escapedMessage.length},
                 last_activity = '#{data["time"]}'
             WHERE 
                 server_group = '#{data["serverGroup"]}' AND name = '#{data["channel"]}'

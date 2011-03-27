@@ -58,7 +58,7 @@ class Script < BotPlugin
                 requiredLevel = @reqScriptLevel
                 if authCheck(requiredLevel)
                     rs = eval(toEval)
-                    return sayf(rs)
+                    return rs
                 else
                     return sayf(@noAuthMessage)
                 end

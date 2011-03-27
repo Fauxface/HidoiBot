@@ -294,6 +294,7 @@ class IRC
                 handleProcessEvery(data)
                 triggerDetection(data)
                 ctcpDetection(data)
+                
             when '001'
                 # When registered
                 registerNickserv if @nickserv == 1
