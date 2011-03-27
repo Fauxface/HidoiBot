@@ -77,6 +77,10 @@ module Timer
     end
     
     def addEvent(user, type, time, occurrence, occurrenceOffset, *message)
+        if time.class != Time
+            time = Time.at(time.to_i)
+        end
+    
         event = {
             # Who to remind
             "user" => user,
