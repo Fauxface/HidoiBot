@@ -11,7 +11,7 @@
         name = self.class.name
         @hook = 'remind'
         processEvery = false
-        help = "Usage: #{@hook} (clearall|clearrecurring|<userOrChannelToRemind|me> about <event> (in|every) <time>)\nFunction: Sets or clears reminders."
+        help = "Usage: #{@hook} (clearall|clearrecurring|clearmine|<userOrChannelToRemind|me> about <event> (in|every) <time>)\nFunction: Sets or clears reminders."
         super(name, @hook, processEvery, help)
     end
 
@@ -21,7 +21,7 @@
         mode = arguments(data)[0]
         case mode
             when 'clearall'
-                if checkAuth(@requiredlevelForClear)
+                if checkAuth(@requiredLevelForClear)
                     return clearReminders
                 else
                     return sayf(@noAuthMessage)
@@ -32,6 +32,8 @@
                 else
                     return sayf(@noAuthMessage)
                 end
+            when 'clearmine'
+                return clearMyReminders(data)
             else
                 return addReminder(data)
         end
@@ -46,13 +48,14 @@
         user = extract[2]
         message = extract[4]
         timeRelative = extract[6]
-        parsedTime = Time.at(parseRemindTime(timeRelative))
+        parsedTimeRelative = parseRemindTime(timeRelative)
+        parsedTime = Time.at(parsedTimeRelative)
         isRecurring = data["message"].split(/(#{user}|about| #{message} | #{timeRelative})/)[6]
         
         # Checking for type
         if isRecurring == 'every'
             occurrence = 'recurring'
-            occurrenceOffset = parseRemindTime(timeRelative)
+            occurrenceOffset = parsedTimeRelative
             parsedTime += Time.now.to_i
         elsif isRecurring == 'in'
             occurrence = 'single'
@@ -93,19 +96,24 @@
         return "deleteEventType('reminder'); #{rs}"
     end
     
+    def clearMyReminders(data)
+        rs = sayf('Clearing your reminders.')
+        return "deleteReminderUser('#{data["sender"]}'); #{rs}"
+    end
+    
     def parseRemindTime(time)
 		timeUnit = time[/[a-z]+$/i]
 		timeDigit = time[/[0-9\.]+/]
 
-		if timeUnit == /(s|seconds?|secs?)/
-		elsif timeUnit == /(m|minutes?|mins?)/
+		if timeUnit.match(/(s|seconds?|secs?)/)
+		elsif timeUnit.match(/(m|minutes?|mins?)/)
 			timeDigit = timeDigit.to_f * 60
-		elsif timeUnit == /(h|hrs?|hours?)/
+		elsif timeUnit.match(/(h|hrs?|hours?)/)
 			timeDigit = timeDigit.to_f * 60 * 60
-		elsif timeUnit == /(d|days?)/
+		elsif timeUnit.match(/(d|days?)/)
 			timeDigit = timeDigit.to_f * 24 * 60 * 60
 		end
-		
+
 		remindTime = timeDigit.to_i
         return remindTime
     end

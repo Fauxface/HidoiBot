@@ -69,6 +69,13 @@ module Timer
         }
     end
     
+    def deleteReminderUser(user)
+        @events.delete_if{ |event|
+            event["user"] == user
+            event["type"] == 'reminder'
+        }
+    end
+    
     def cleanupEvents
         @events.delete_if{ |event|
             event["occurrence"] == 'inactive'
