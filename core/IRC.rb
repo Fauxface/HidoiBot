@@ -158,6 +158,9 @@ class IRC
         rescue
             puts "Sending of QUIT failed."
         end
+        
+        stopPingChecks
+        
         @connection.close if @connection != nil
         @TCP.close if @TCP.class == TCPSocket
         @connected = false
