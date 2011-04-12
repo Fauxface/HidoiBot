@@ -15,10 +15,10 @@ class Wikipedia < BotPlugin
         
         case mode
             when 'plot'
-                searchterm = arguments(data)[1]
-                return "say ('#{wiki(searchterm, 1)}')"
+                searchterm = stripWordsFromStart(searchterm, 1)
+                return sayf(wiki(searchterm, 1))
             else
-                return "say ('#{wiki(searchterm)}')"
+                return sayf(wiki(searchterm))
         end
     rescue => e
         handleError(e)
@@ -38,7 +38,7 @@ class Wikipedia < BotPlugin
 		doc = Nokogiri::HTML(open("http://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles=#{termToUse}&rvprop=content&rvsection=#{section[0]}&format=xml"))
 		rs = doc.xpath("//rev").inner_text
 		stripWikiMarkup(rs)
-        escapeSyntax(rs)
+        
 		if rs.length > maxSectionLength
 			return "#{rs[0..maxSectionLength]}\nResult truncated; section is too long."
 		else

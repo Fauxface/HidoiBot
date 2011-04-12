@@ -54,6 +54,16 @@ class BotPlugin
         return arguments(data).join(' ')
     end
     
+    def stripWordsFromStart(s, number)
+        splitWords = s.split(' ')
+        
+        for i in 1..number
+            splitWords.delete_at(0)
+        end
+        
+        return splitWords.join(' ')
+    end
+    
     def detectMode(data)
         # Returns first block of message
         # This can be used to detect if a plugin processing every line was called using a trigger
@@ -64,9 +74,9 @@ class BotPlugin
     def escapeSyntax(s)
         # Use this if you are getting syntax errors in IRC from breaking eval
         # Use escapeSyntaxHard IF YOU GOT MAD LIKE I DID AT THE ATROCIOUS ESCAPING REQUIRED
-        s.gsub!(/[\\]/, '\\\\\\') if s.class == String
-        s.gsub!(/[']/, '\\\\\'') if s.class == String
-        s.gsub!(/["]/, '\\\\\"') if s.class == String
+        s = s.gsub(/[\\]/, '\\\\\\') if s.class == String
+        s = s.gsub(/[']/, '\\\\\'') if s.class == String
+        s = s.gsub(/["]/, '\\\\\"') if s.class == String
         return s
     end
     
@@ -74,7 +84,7 @@ class BotPlugin
         # Apostrophes more like hate
         # http://weblog.jamisbuck.org/2004/12/19/sqlite3-bindings-for-ruby
         # Prepared statements
-        s.gsub!(/['"]/, '`')
+        s = s.gsub(/['"]/, '`')
         return s
     end
     
