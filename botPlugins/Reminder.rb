@@ -104,8 +104,8 @@
     def parseRemindTime(time)
 		timeUnit = time[/[a-z]+$/i]
 		timeDigit = time[/[0-9\.]+/]
-
-		if timeUnit.match(/(s|seconds?|secs?)/)
+        
+		if timeUnit.match(/(^s$|seconds?|secs?)/)
 		elsif timeUnit.match(/(m|minutes?|mins?)/)
 			timeDigit = timeDigit.to_f * 60
 		elsif timeUnit.match(/(h|hrs?|hours?)/)
