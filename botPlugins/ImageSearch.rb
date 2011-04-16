@@ -14,6 +14,7 @@
         @reqHashAuth = 0
         @reqUrlAuth = 0
         @reqRndImgAuth = 0
+        @reqInfoAuth = 0
         
         # Required plugin stuff
         name = self.class.name
@@ -47,6 +48,7 @@
                 else
                     return sayf(@notAuthorisedMessage)
                 end
+                
             when 'url'
                 requiredLevel = @reqUrlAuth
                 if authCheck(requiredLevel)
@@ -54,6 +56,15 @@
                 else
                     return sayf(@notAuthorisedMessage)
                 end
+                
+            when 'info'
+                requiredLevel = @reqInfoAuth
+                if authCheck(requiredLevel)
+                    return sayf(getHashDetails(term))
+                else
+                    return sayf(@notAuthorisedMessage)
+                end
+                
             when 'rndimg'
                 requiredLevel = @reqRndImgAuth
                 if authCheck(requiredLevel)
@@ -97,6 +108,27 @@
         filetype = filename[1]
         
         return "#{hash}.#{filetype}"
+    end
+    
+    def getHashDetails(hash)
+        puts 'ImageSearch: Getting image details for hash.'
+        imageId = sql("SELECT rowid FROM image WHERE sha256='#{hash}'")[0][0]
+        details = sql("SELECT * FROM source WHERE image_id='#{imageId}'")
+        reposts = details.size
+        
+        postId, time, url, user, channel, context = Array.new, Array.new, Array.new, Array.new, Array.new, Array.new
+        
+        for i in 0..(details.size - 1)
+            postId.push(details[i][0])
+            time.push(Time.at(details[i][1]))
+            url.push(details[i][2])
+            user.push(details[i][3])
+            channel.push(details[i][4])
+            context.push(details[i][5])
+        end
+        
+        rs = "Details for: #{hash}\nTimes seen: #{reposts}. Last posted by #{user.last} at #{time.last} in #{channel.last}.\nOriginal URLs: #{url.uniq.join(', ')}"
+        return rs
     end
     
     def recallUrlFromHash(hash)
