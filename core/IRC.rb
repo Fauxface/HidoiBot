@@ -350,12 +350,13 @@ class IRC
     end
     
     def triggerDetection(data)
-        # Need to handle cases where trigger is more than one character: use regex, it's magic
-        # Make triggers case insensitive?
+        # Triggers are case-sensitive
         message = data["message"]
-
-        if message[0] == @trigger
-            message.slice!(0)
+        
+        if /^#{@trigger}/ === message || /^#{@nickname}: / === message
+            message.slice!(/^#{@trigger}/)
+            message.slice!(/^#{@nickname}: /)
+            
             trigger = message.split(' ')[0]
             pluginInfo = checkTriggerMap(trigger)
             coreToRun = checkCoreTriggerMap(data, trigger)
