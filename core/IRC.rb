@@ -41,6 +41,7 @@ class IRC
     end
     
     def botDetails(nickname, nickserv, nickservPassword)
+        @defaultNickname = nickname
         @nickname = nickname
         @nickserv = nickserv
         @nickservPassword = nickservPassword
@@ -128,7 +129,8 @@ class IRC
         else
             raise "connectError: SSL usage not defined"
         end
-       
+        
+        @nickname = @defaultNickname
         registerConnection
         # Nickserv is handled in handleData
         
