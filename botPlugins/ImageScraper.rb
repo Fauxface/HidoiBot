@@ -50,7 +50,7 @@ class ImageScraper < BotPlugin
         url = urlDetection(data)
         
         if data["trigger"] != nil && data["trigger"] != @hook
-            puts "ImageScraper: Not scraping image URL in trigger"
+            #puts "ImageScraper: Not scraping image URL in trigger"
             url = nil
             mode = nil
             
