@@ -5,7 +5,7 @@ HidoiBot v2 is a near-complete rewrite of HidoiBot v1, done in early 2011, with 
 There are several notable inadequacies in v2 -- I had to 'hack' in solutions and implement 'half-past-six' code or HidoiBot v2 would never have been completed. Essentially, corners were cut. So many, that it's beginning to look like a circle.
 
 == Installation ==
-HidoiBot is tested to run on GNU/Linux and Windows, with Ruby 1.9.2 installed. Older versions of Ruby might work, but it is untested.
+HidoiBot is tested to run on GNU/Linux and Windows, with Ruby 1.9.2 installed. Older versions of Ruby might work, but are untested.
 
 Pull the source and install the following stuff:
 
@@ -18,6 +18,7 @@ Pretty much required:
     
 Might be required - if you're getting an error try these:
     sqlite3 - 'gem install sqlite3'
+    json or json_pure - 'gem install json' or 'gem install json_pure'
 
 Stuff you might want:
     A proper webserver on the bot's computer, such as Apache2 or lighttpd
@@ -33,7 +34,9 @@ Stuff you might want:
 == Configuring default plugins ==
 1. MpcSync - Check if MPC's address, port and the port on which you are listening for 'GO!' packets are correct.
 2. WolframAlpha - If you wish to use your own W|A API key, change it here. W|A imposes a monthly limit on API calls.
-3. ImageScraper - If you wish to change the directory scraped images are saved in, change it here.
+3. RottenTomatoes - Same deal here as WolframAlpha. Insert your own API key if you so desire.
+4. ImageScraper - If you wish to change the directory scraped images are saved in, change it here.
+5. MarkovChat - "settings/markovChat/braintrain.txt" is the training file for Markov chat. Use ~chat train to train HidoiBot.
 
 Additionally, required authorisation levels can be changed for all bot functions in their respective BotPlugin files.
 
@@ -67,6 +70,7 @@ Notable Default plugins:
     2. Media Player Classic syncronisation and now playing information
     3. User and channel statistics and user last seen information
     4. Hiragana and Katakana to Romanji transliterator
+    5. MarkovChat, a simple chatbot interface
 
 To turn plugins off:
     1. The plugin might have an internal 'off' switch, check help <plugin>
@@ -76,4 +80,4 @@ To add plugins:
     For most plugins, dump the plugin.rb file in 'BotPlugins' and it'll work fine.
     
 To change plugin auth level:
-    Open the file of the plugin you wish to modify authlevels for and search for auth level settings in initialize. If that fails, look for instances of 'requiredLevel' or authCheck.
+    Open the file with the plugin you wish to modify the required authorisation level for and search for instances of 'requiredLevel' or authCheck. They should be in the 'initialize' method.
