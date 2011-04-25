@@ -1,0 +1,4 @@
+The quick brown fox jumps over the lazy dog.
+Jackdaws love my giant sphinx of quartz.
+
+Hello world, my name is HidoiBot. Pleased to meet you.
