@@ -296,8 +296,8 @@ class IRC
                     @replyChannel = data["channel"]
                 end
                 
-                handleProcessEvery(data)
                 triggerDetection(data)
+                handleProcessEvery(data)
                 ctcpDetection(data)
                 
             when '001'
@@ -330,6 +330,7 @@ class IRC
     def handleProcessEvery(data)
         # This sends data to every plugin that requested to process every PRIVMSG received
         @pluginMapping["processEvery"].each{ |pluginName|
+            data["trigger"] = 'processEvery'
             runPlugin(pluginName, data)        
         }
     end
@@ -358,8 +359,9 @@ class IRC
         if /^#{@trigger}/ === message || /^#{@nickname}: / === message
             message.slice!(/^#{@trigger}/)
             message.slice!(/^#{@nickname}: /)
+            message = message.split(' ')
             
-            trigger = message.split(' ')[0]
+            trigger = message[0]
             pluginInfo = checkTriggerMap(trigger)
             coreToRun = checkCoreTriggerMap(data, trigger)
             
@@ -371,10 +373,12 @@ class IRC
             if coreToRun != nil
                 puts "Core trigger detected: #{coreToRun}"
                 data["trigger"] = trigger
+                data["message"] = message.join(' ')
                 eval(coreToRun)
             elsif pluginToRun != nil 
                 puts "Plugin trigger detected: #{pluginToRun}"
                 data["trigger"] = trigger
+                data["message"] = message.join(' ')
                 runPlugin(pluginToRun, data)
             else
                 puts "triggerDetection: No mapping for #{message.chomp} was found."

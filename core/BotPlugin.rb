@@ -49,6 +49,10 @@ class BotPlugin
         end
     end
     
+    def detectTrigger(data)
+        return data["message"].split(' ')[0]
+    end
+    
     def stripTrigger(data)
         # Delete trigger but leave remaining message intact
         return arguments(data).join(' ')
