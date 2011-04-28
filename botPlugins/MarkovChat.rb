@@ -60,7 +60,7 @@ class MarkovChat < BotPlugin
         name = self.class.name
         @hook = 'chat'
         processEvery = @s['learning']
-        help = "Usage: #{@hook} (about <word(s)>|on|off|chipon|chipoff|chipprob <p>|status)\nFunction: Uses a simple Markov chain implementation to simulate sentinence. Use about <word(s)> to chat."
+        help = "Usage: #{@hook} (about <word(s)>|on|off|chipon|chipoff|chipprob <p>|status)\nFunction: Uses a simple Markov chain implementation to simulate sentience. Use about <word(s)> to chat."
         super(name, @hook, processEvery, help)
     end
     
@@ -218,7 +218,7 @@ class MarkovChat < BotPlugin
     def addChain(words)
         chainLength = @chainLength - 1
         
-        for i in 0..words.size - (@chainLength + 1)
+        for i in 0..words.size - (@chainLength)
             # -2: -1 because we start from 0 and another -1 because we don't want to make the loop overshoot
             pushBrain(words[i..(i+chainLength)].join(' '), words[i + chainLength + 1])
             
@@ -374,7 +374,7 @@ class MarkovChat < BotPlugin
             # You're a winner!
             keyOfChoice = keys[chosenIndex]
             
-            if direction == 'reverse'
+            if direction == 'reverse' && keyOfChoice != nil
                 # The key is stored in reverse in the reverse brain
                 keyOfChoice = keyOfChoice.split(' ').reverse.join(' ')
             end
@@ -393,29 +393,27 @@ class MarkovChat < BotPlugin
         if seeds[0].size > 1
             # If input is a phrase
             seeds = seeds[0]
-            seedRev = "#{seeds.first} #{seeds[1]}"
-            seedFor = "#{seeds[seeds.size - 2]} #{seeds.last}"
+            seedRev = "#{seeds.first}"
+            seedFor = "#{seeds.last}"
             
             return makeSentence(seedRev, seedFor, seedSentence)
             
         elsif seeds.size == 1
             # If input is a word
-            return makeSentence(seeds[0], seeds[0], seeds[0])
+            return makeSentence(seeds[0][0], seeds[0][0], seeds[0][0])
         end
     end
     
-    def makeSentence(seedRev, seedFor=seedRev, seeds='')
-        if seeds.size > 1
+    def makeSentence(seedRev, seedFor, seeds='')
+        puts "seeds #{seeds} sr = #{seedRev} sf = #{seedFor}"
+            if seeds.class == Array
+                seeds = seeds.join(' ')
+            end
+            
             reverseString = makeChain(seedRev, 'reverse') 
             forwardString = makeChain(seedFor)
-            rawSentence = reverseString + " #{seeds} " + forwardString
-            
-        elsif seeds.size == 1
-            reverseString = makeChain(seedRev[0], 'reverse') 
-            forwardString = makeChain(seedFor[0])
-            rawSentence = reverseString + " " + stripWordsFromStart(forwardString, 1)
-        end
-        
+            rawSentence = stripWordsFromEnd(reverseString, 1) + " #{seeds} " + stripWordsFromStart(forwardString, 1)
+
         return cleanOutput(rawSentence)
     end
     
@@ -426,24 +424,19 @@ class MarkovChat < BotPlugin
         if @wordCount < @s['maxWords']
             appendWord = getProbWord(seed, direction)
             
-            if appendWord != nil
-            
-                if appendWord.split(' ').size > 1
-                    # I HAVE NO IDEA WHY THIS MAKES THE RESULT BETTER
-                    parsedAppendWord = stripWordsFromStart(appendWord, 0)
-                end
-                
-                sentence.push(parsedAppendWord)
+            if appendWord != nil && appendWord.split(' ').size > 1
+                sentence.push(appendWord)
+            else
+                parsedAppendWord = appendWord        
             end
             
-            @wordCount += 1
-                
             if appendWord != nil
-                sentence.push (makeChain(appendWord, direction))
+                @wordCount += 1
+                sentence.push(makeChain(appendWord, direction))
+            else
+                @wordCount = 0
             end
-        end
-        
-        @wordCount = 0
+        end        
         
         sentence.delete_if{ |x|
             x == nil

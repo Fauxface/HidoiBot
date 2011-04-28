@@ -68,6 +68,17 @@ class BotPlugin
         return splitWords.join(' ')
     end
     
+    def stripWordsFromEnd(s, number)
+        splitWords = s.split(' ')
+        splitWords = splitWords.reverse
+                
+        for i in 1..number
+            splitWords.delete_at(0)
+        end
+        
+        return splitWords.reverse.join(' ')
+    end
+    
     def detectMode(data)
         # Returns first block of message
         # This can be used to detect if a plugin processing every line was called using a trigger
