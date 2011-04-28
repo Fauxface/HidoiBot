@@ -132,7 +132,7 @@ class MarkovChat < BotPlugin
             end
         end
         
-        if @s['chipIn'] == true && rand < @s['chipInP']
+        if @s['chipIn'] == true
             return sayf(randChipIn(data))
         end
         
@@ -206,6 +206,7 @@ class MarkovChat < BotPlugin
         return "MarkovChat: Brain trained using #{@trainingFile}."
     rescue => e
         handleError(e)
+        return "MarkovChat: A few errors in reading the training file -- brain has hopefully been trained using #{@trainingFile}."
     end
     
     def learnLine(line)
@@ -219,7 +220,6 @@ class MarkovChat < BotPlugin
         chainLength = @chainLength - 1
         
         for i in 0..words.size - (@chainLength)
-            # -2: -1 because we start from 0 and another -1 because we don't want to make the loop overshoot
             pushBrain(words[i..(i+chainLength)].join(' '), words[i + chainLength + 1])
             
             words.reverse!
@@ -235,7 +235,7 @@ class MarkovChat < BotPlugin
         #words.gsub!(/ (\[|\\|\^||\||\?|\*|\+|\(|\)|\]|\/|!|@|#|$|%|&|_|-|=|'|"|:|;|>|?|<|,) ?/, '')
         
         # URLs
-        s = s.gsub(/(http(s?)\:)([\/|.|\w|\s|\:|~]|-)*\.(?:jpg|gif|png|bmp)/i, '')
+        s = s.gsub(/(http(s?)\:)([\/|.|\w|\s|\:|~]|-)*\..*/i, '')
         
         # Whitespace
         s = s.gsub(/(  +|^ | $|\t|\n|\r)/, ' ')
@@ -390,6 +390,9 @@ class MarkovChat < BotPlugin
         seedSentence = stripWordsFromStart(data["message"], 2)
         seeds.push(seedSentence.split(' '))
         
+        #if seeds[0].size == @chainLength
+            # If we have a phrase that can potentially be a chain itself
+        
         if seeds[0].size > 1
             # If input is a phrase
             seeds = seeds[0]
@@ -405,15 +408,15 @@ class MarkovChat < BotPlugin
     end
     
     def makeSentence(seedRev, seedFor, seeds='')
-        puts "seeds #{seeds} sr = #{seedRev} sf = #{seedFor}"
-            if seeds.class == Array
-                seeds = seeds.join(' ')
-            end
-            
-            reverseString = makeChain(seedRev, 'reverse') 
-            forwardString = makeChain(seedFor)
-            rawSentence = stripWordsFromEnd(reverseString, 1) + " #{seeds} " + stripWordsFromStart(forwardString, 1)
-
+        if seeds.class == Array
+            seeds = seeds.join(' ')
+        end
+        
+        reverseString = makeChain(seedRev, 'reverse') 
+        forwardString = makeChain(seedFor)
+        
+        rawSentence = stripWordsFromEnd(reverseString, 1) + " #{seeds} " + stripWordsFromStart(forwardString, 1)
+        
         return cleanOutput(rawSentence)
     end
     
@@ -422,21 +425,24 @@ class MarkovChat < BotPlugin
         appendWord = String.new
         
         if @wordCount < @s['maxWords']
+            # Check for a link to the previous chain/seed
             appendWord = getProbWord(seed, direction)
             
             if appendWord != nil && appendWord.split(' ').size > 1
+                # Add the current chain to the sentence
                 sentence.push(appendWord)
-            else
-                parsedAppendWord = appendWord        
             end
             
             if appendWord != nil
+                # If there is still a link to another chain
                 @wordCount += 1
                 sentence.push(makeChain(appendWord, direction))
             else
-                @wordCount = 0
+                # Else, we stop the recurrence
+                # I don't like the hackery involved here - why reverse only?
+                sentence.push(seed) if direction == "reverse"
             end
-        end        
+        end
         
         sentence.delete_if{ |x|
             x == nil
@@ -446,20 +452,24 @@ class MarkovChat < BotPlugin
             sentence = sentence.reverse
         end
         
+        # Resetting to zero just to test if it fixes a bug
+        @wordCount = 0
         return sentence.join(' ').rstrip.lstrip
     rescue => e
         handleError(e)
     end
     
     def randChipIn(data)
-        topic = data["message"].split(' ')
-        topic = [topic[rand(topic.size)]]
-        
-        wittyAttempt = makeSentence(topic[0], topic[0], topic[0])
-        
-        if wittyAttempt.length > 0 && wittyAttempt != topic
-            # If we have something constructive to add
-            return wittyAttempt
+        if rand < @s['chipInP']
+            topic = data["message"].split(' ')
+            topic = [topic[rand(topic.size)]]
+            
+            wittyAttempt = makeSentence(topic[0], topic[0], topic[0])
+            
+            if wittyAttempt.length > 0 && wittyAttempt != topic
+                # If we have something constructive to add
+                return wittyAttempt
+            end
         end
     end
 end
