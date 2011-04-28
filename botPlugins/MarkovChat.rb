@@ -455,7 +455,7 @@ class MarkovChat < BotPlugin
         topic = data["message"].split(' ')
         topic = [topic[rand(topic.size)]]
         
-        wittyAttempt = makeSentence(topic, topic, topic)
+        wittyAttempt = makeSentence(topic[0], topic[0], topic[0])
         
         if wittyAttempt.length > 0 && wittyAttempt != topic
             # If we have something constructive to add
