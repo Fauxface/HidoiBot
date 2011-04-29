@@ -64,7 +64,7 @@ class ImageScraper < BotPlugin
                 return @notAuthorisedMessage
             end
             
-        elsif url != nil
+        elsif url != nil && data["trigger"] == 'processEvery'
             # Scrape image if url detected
             imageScrape(url['url'], data) if @scraping == true
             mode = nil
@@ -187,9 +187,10 @@ class ImageScraper < BotPlugin
     rescue Timeout::Error
         puts "ImageScraper: Unable to save image: Timeout (#{@imageScrapeTimeout}s)"
     rescue => e
-        handleError(e)
+        puts "ImageScraper: Unable to save image: #{e}"
+        #handleError(e)
     ensure
-        File.delete(temporaryFilenme) if File.file?(temporaryFilename) == true
+        File.delete(temporaryFilename) if File.file?(temporaryFilename) == true
     end
     
     def recordImage(active, corrupt, sha256, md5, size, filetype)

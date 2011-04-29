@@ -110,8 +110,20 @@
         return "#{hash}.#{filetype}"
     end
     
+    def sanitizeHash(hash)
+        hash = hash.slice(/[0-F]+/)
+        return hash
+    end
+    
+    def sanitizeUrl(url)
+        url = url.slice(/^(ht|f)tp(s?)\:\/\/[0-9a-zA-Z]([-.\w]*[0-9a-zA-Z])*(:(0-9)*)*(\/?)([a-zA-Z0-9\-\.\?\,\'\/\\\+&amp;%\$#_]*)?$/)
+        return url
+    end
+    
     def getHashDetails(hash)
         puts 'ImageSearch: Getting image details for hash.'
+        hash = sanitizeHash(hash)
+        
         imageId = sql("SELECT rowid FROM image WHERE sha256='#{hash}'")[0][0]
         details = sql("SELECT * FROM source WHERE image_id='#{imageId}'")
         reposts = details.size
@@ -134,6 +146,8 @@
     def recallUrlFromHash(hash)
         # Takes hash, returns source URLs
         puts 'ImageSearch: Recalling source URL from hash.'
+        hash = sanitizeHash(hash)
+        
         imageId = sql("SELECT rowid FROM image WHERE sha256='#{hash}'")[0][0]
         sourceUrls = sql("SELECT url FROM source WHERE image_id='#{imageId}'")[0]
         puts sourceUrls
@@ -142,6 +156,8 @@
     
     def recallHashFromUrl(url)
         puts 'ImageSearch: Recalling hash.filetype from source URL.'
+        url = sanitizeUrl(url)
+        
         # Takes URL, returns hash.filetype
         imageHashes = Array.new
         imageId = sql("SELECT image_id FROM source WHERE url='#{url}'")[0]
