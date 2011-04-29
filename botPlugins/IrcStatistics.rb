@@ -39,7 +39,7 @@
                 when 'status'
                     return sayf(isTracking)
                 when 'user'
-                    rs = prettyStat(data, 'user', arguments(data)[1])
+                    rs = prettyStat(data, 'user', sanitize(arguments(data)[1]), 'user')
                     return sayf(rs)
                 when 'channel'
                     rs = prettyStat(data, 'channel', arguments(data)[1])
@@ -55,7 +55,7 @@
         elsif data["trigger"] == @hook[1]
             # If called using 'seen', which is hook[1]
             if arguments(data)[0] != nil
-                rs = prettyStat(data, 'seen', arguments(data)[0])
+                rs = prettyStat(data, 'seen', sanitize(arguments(data)[0], 'user'))
                 return sayf(rs)
             else
                 return sayf(@noSeenArgMessage)
@@ -93,8 +93,22 @@
         end
     end
     
+    def sanitize(string, mode)
+        if mode == 'user'
+            string = string.slice(/\A[a-z_\-\[\]\\^{}|`][a-z0-9_\-\[\]\\^{}|`]*\z/i)
+        elsif mode == 'channel'
+            string = string.slice(/#[a-z_\-\[\]\\^{}|`][a-z0-9_\-\[\]\\^{}|`]*\z/i)
+        end
+        
+        return string           
+    end
+    
     def prettyStat(data, mode, term)
         # Formats statistics into a return string
+        if term == nil
+            return "Invalid name."
+        end
+        
         case mode
             when 'user'
                 userData = silentSql("SELECT nickname, last_message, last_message_time, last_message_channel, message_count, character_count, first_seen FROM stats_user WHERE nickname = '#{term}' AND server_group = '#{data["serverGroup"]}'")[0]
@@ -118,7 +132,7 @@
                     
                     return ("Stats for user #{nickname}:\nLast seen on #{lastMessageTime}, saying \'#{lastMessage}\' in #{lastMessageChannel}\nMessage count: #{messageCount}, Character count: #{characterCount}, Means: #{meanMessageLength}char/msg, #{meanMessagesPerDay}msg/day\nFirst seen on #{firstSeen}, #{daysSinceFirstSeen} days ago.")
                 else
-                    return "User #{term} was not found."
+                    return "User #{term} was not found. Note: This is case-sensitive."
                 end
                 
             when 'channel'
@@ -141,7 +155,7 @@
                     
                     return ("Stats for channel #{name}:\nLast activity: #{lastActivity}\nMessage count: #{messageCount}, Character count: #{characterCount}, Means: #{meanMessageLength}char/msg, #{meanMessagesPerDay}msg/day\nFirst seen on #{firstSeen}, #{daysSinceFirstSeen} days ago.")
                 else
-                    return "Channel #{term} was not found."
+                    return "Channel #{term} was not found. Note: This is case-sensitive."
                 end
                 
             when 'seen'
@@ -164,7 +178,7 @@
                     
                     return rs
                 else
-                    return "User #{term} was not found."
+                    return "User #{term} was not found. Note: This is case-sensitive."
                 end
         end
     end
