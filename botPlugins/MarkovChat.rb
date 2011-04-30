@@ -7,7 +7,7 @@ class MarkovChat < BotPlugin
         'learning' => true,
         
         # Add to conversations?
-        'chipIn' => true,       
+        'chipIn' => true,
         'chipInP' => 0.01,
         
         # Per side, multiply by two for total. Set to a high number for more natural-looking, long-winded, formations.
@@ -133,7 +133,8 @@ class MarkovChat < BotPlugin
         end
         
         if @s['chipIn'] == true
-            return sayf(randChipIn(data))
+            rs = randChipIn(data)
+            return sayf(rs) if rs != nil
         end
         
     rescue => e
@@ -206,7 +207,7 @@ class MarkovChat < BotPlugin
         return "MarkovChat: Brain trained using #{@trainingFile}."
     rescue => e
         handleError(e)
-        return "MarkovChat: A few errors in reading the training file -- brain has hopefully been trained using #{@trainingFile}."
+        return "MarkovChat: A few errors in reading the training file. If they are UTF-8 errors the brain should have been trained fine using #{@trainingFile}."
     end
     
     def learnLine(line)
@@ -346,22 +347,13 @@ class MarkovChat < BotPlugin
                     keys.push (pword[0])
                     counts.push (pword[1])
                 }
-                
             else
                 return nil
             end
         end
         
-        # Random premature termination of chain
-        #if counts.size == 1
-        #    keys.push(nil)
-        #    @terminationP = 0.382
-        #    counts.push(@terminationP)
-        #end
-        
         probs = counts.map{ |x|
-                # Gibberish reduction attempt
-                #Math::sqrt(x) * rand()
+                #Math::sqrt(x) * rand() # Gibberish reduction attempt
                 x * rand()
             }
         
@@ -429,31 +421,24 @@ class MarkovChat < BotPlugin
             appendWord = getProbWord(seed, direction)
             
             if appendWord != nil && appendWord.split(' ').size > 1
-                # Add the current chain to the sentence
+                # Add the current chain to the sentence if it's not a bridging chain
                 sentence.push(appendWord)
             end
             
             if appendWord != nil
                 # If there is still a link to another chain
+                # Else, we stop the recurrence
                 @wordCount += 1
                 sentence.push(makeChain(appendWord, direction))
-            else
-                # Else, we stop the recurrence
-                # I don't like the hackery involved here - why reverse only?
-                sentence.push(seed) if direction == "reverse"
             end
         end
-        
-        sentence.delete_if{ |x|
-            x == nil
-        }
         
         if direction == 'reverse'
             sentence = sentence.reverse
         end
         
-        # Resetting to zero just to test if it fixes a bug
         @wordCount = 0
+
         return sentence.join(' ').rstrip.lstrip
     rescue => e
         handleError(e)
@@ -469,7 +454,11 @@ class MarkovChat < BotPlugin
             if wittyAttempt.length > 0 && wittyAttempt != topic
                 # If we have something constructive to add
                 return wittyAttempt
+            else
+                return nil
             end
+        else
+            return nil
         end
     end
 end
