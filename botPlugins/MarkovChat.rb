@@ -451,7 +451,7 @@ class MarkovChat < BotPlugin
             
             wittyAttempt = makeSentence(topic[0], topic[0], topic[0])
             
-            if wittyAttempt.length > 0 && wittyAttempt != topic
+            if wittyAttempt.length > 0 && wittyAttempt != topic && wittyAttempt != data["message"].upcase
                 # If we have something constructive to add
                 return wittyAttempt
             else
