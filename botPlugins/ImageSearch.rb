@@ -20,7 +20,7 @@
         name = self.class.name
         @hook = ['recall', 'ims', 'rndimg']
         processEvery = false
-        help = "Usage: #{@hook} *(hash|url) <term>\nFunction: Searches through ImageScraper's image database for details. hash returns source URLs from a SHA256 hash, url returns images mirrored on ImageScraper's database. Append ' :nomirror' to imagelinks if you wish to prevent ImageScraper from scraping links."
+        help = "Usage: #{@hook} *(hash <hash>|url <url>|info <hash>)\nFunction: Searches through ImageScraper's image database for details. hash returns source URLs from a SHA256 hash, url returns images mirrored on ImageScraper's database. Append ' :nomirror' to imagelinks if you wish to prevent ImageScraper from scraping links."
         super(name, @hook, processEvery, help)
     end
 
@@ -111,7 +111,7 @@
     end
     
     def sanitizeHash(hash)
-        hash = hash.slice(/[0-F]+/)
+        hash = hash.slice(/[0-F]+/i)
         return hash
     end
     
@@ -121,9 +121,10 @@
     end
     
     def getHashDetails(hash)
+        puts hash
         puts 'ImageSearch: Getting image details for hash.'
         hash = sanitizeHash(hash)
-        
+        puts hash
         imageId = sql("SELECT rowid FROM image WHERE sha256='#{hash}'")[0][0]
         details = sql("SELECT * FROM source WHERE image_id='#{imageId}'")
         reposts = details.size
@@ -132,14 +133,17 @@
         
         for i in 0..(details.size - 1)
             postId.push(details[i][0])
-            time.push(Time.at(details[i][1]))
+            time.push(Time.at(details[i][1]).utc)
             url.push(details[i][2])
             user.push(details[i][3])
             channel.push(details[i][4])
             context.push(details[i][5])
         end
         
-        rs = "Details for: #{hash}\nTimes seen: #{reposts}. Last posted by #{user.last} at #{time.last} in #{channel.last}.\nOriginal URLs: #{url.uniq.join(', ')}"
+        rs = "Details for: #{hash}\nTimes seen: #{reposts}.\nFirst posted by #{user.first} at #{time.first} in #{channel.first}"
+        rs += "\nLast posted by #{user.last} at #{time.last} in #{channel.last}." if user.size > 1
+        rs += "\nOriginal URLs: #{url.uniq.join(', ')}"
+        
         return rs
     end
     
