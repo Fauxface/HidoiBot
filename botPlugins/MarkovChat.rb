@@ -404,8 +404,8 @@ class MarkovChat < BotPlugin
             seeds = seeds.join(' ')
         end
         
-        reverseString = makeChain(seedRev, 'reverse') 
-        forwardString = makeChain(seedFor)
+        reverseString = makeChain(seedRev.downcase, 'reverse') 
+        forwardString = makeChain(seedFor.downcase)
         
         rawSentence = stripWordsFromEnd(reverseString, 1) + " #{seeds} " + stripWordsFromStart(forwardString, 1)
         
