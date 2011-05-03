@@ -121,10 +121,9 @@
     end
     
     def getHashDetails(hash)
-        puts hash
         puts 'ImageSearch: Getting image details for hash.'
         hash = sanitizeHash(hash)
-        puts hash
+
         imageId = sql("SELECT rowid FROM image WHERE sha256='#{hash}'")[0][0]
         details = sql("SELECT * FROM source WHERE image_id='#{imageId}'")
         reposts = details.size
