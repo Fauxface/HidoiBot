@@ -447,8 +447,6 @@ class IRC
     def send(data)
         puts "SEND: #{data}"
         @connection.puts data.to_s
-    rescue => e
-        handleError(e)
     end
     
     def say(message)
