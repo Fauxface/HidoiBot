@@ -156,9 +156,9 @@ class IRC
 
     def disconnect(*quitMessage)
         begin
-            send "QUIT #{quitMessage[0]}" if quitMessage[0] != nil
+            @connection.puts "QUIT #{quitMessage[0]}" if quitMessage[0] != nil
         rescue
-            puts "Sending of QUIT failed."
+            puts "Sending of QUIT failed, continuing with disconnect"
         end
         
         stopPingChecks
@@ -169,16 +169,19 @@ class IRC
     end
     
     def reconnect
+        puts "Reconnecting..."
         disconnect('Reconnecting')
         connect
     end
     
     def restart
+        puts "Restarting..."
         disconnect('Restarting')
         exec("ruby HidoiBot2.rb")
     end
     
     def quit
+        puts "Quitting..."
         disconnect('Quitting')
         @shutdown = true
         Process.exit
@@ -447,6 +450,8 @@ class IRC
     def send(data)
         puts "SEND: #{data}"
         @connection.puts data.to_s
+    rescue => e
+        handleError(e)
     end
     
     def say(message)
