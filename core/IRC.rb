@@ -121,8 +121,8 @@ class IRC
             puts "Not using SSL."
         elsif @ssl == true
                 timeout(@serverConnectTimeout) do
-                    @TCP = TCPSocket.new(@hostname, @port)
-                    @connection = OpenSSL::SSL::SSLSocket.new(@TCP)
+                    @tcp = TCPSocket.new(@hostname, @port)
+                    @connection = OpenSSL::SSL::SSLSocket.new(@tcp)
                     @connection.connect
                 end
                 puts "Using SSL."
@@ -161,10 +161,14 @@ class IRC
             puts "Sending of QUIT failed, continuing with disconnect"
         end
         
-        stopPingChecks
+        begin
+            @connection.close if @connection != nil
+            @tcp.close if @ssl == true
+        rescue => e
+            puts "Warning in disconnect: #{e}"
+        end
         
-        @connection.close if @connection != nil
-        @TCP.close if @TCP.class == TCPSocket
+        stopPingChecks
         @connected = false
     end
     
