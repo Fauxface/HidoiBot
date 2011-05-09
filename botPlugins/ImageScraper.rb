@@ -64,7 +64,7 @@ class ImageScraper < BotPlugin
                 return @notAuthorisedMessage
             end
             
-        elsif url != nil && data["trigger"] == 'processEvery'
+        elsif url != nil && data['processEvery'] == true
             # Scrape image if url detected
             imageScrape(url['url'], data) if @scraping == true
             mode = nil

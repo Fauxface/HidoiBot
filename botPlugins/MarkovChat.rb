@@ -67,11 +67,11 @@ class MarkovChat < BotPlugin
     def main(data)
         @givenLevel = data["authLevel"]
         
-        if data["trigger"] == 'processEvery' && data["trigger"] == @hook
+        if data["processEvery"] == true && data["trigger"] == @hook
             # Not learning triggers
             return nil
         
-        elsif data["trigger"] == @hook
+        elsif data["processEvery"] != true && data["trigger"] == @hook
             # If called using trigger
             mode = detectMode(data)
             
@@ -120,7 +120,7 @@ class MarkovChat < BotPlugin
                 end
             end
             
-        elsif @s['learning'] == true && data['trigger'] == 'processEvery'
+        elsif @s['learning'] == true && data['processEvery'] == true
             # Else check if we are learning
             learnLine(data["message"])
             @learnBufferCount += 1
