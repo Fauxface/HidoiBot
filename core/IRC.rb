@@ -337,7 +337,7 @@ class IRC
     def handleProcessEvery(data)
         # This sends data to every plugin that requested to process every PRIVMSG received
         @pluginMapping["processEvery"].each{ |pluginName|
-            data["trigger"] = 'processEvery'
+            data["trigger"] = 'processEvery' if data["trigger"] == nil
             runPlugin(pluginName, data)        
         }
     end
