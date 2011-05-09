@@ -26,7 +26,7 @@
     end
 
     def main(data)
-        if data["trigger"] == @hook[0]
+        if data["trigger"] == @hook[0] && data["processEvery"] != true
             # If called using 'stats', which is hook[0]
             mode = arguments(data)[0]
             case mode
@@ -52,7 +52,7 @@
                     return sayf(@noModeMessage)
             end
             
-        elsif data["trigger"] == @hook[1]
+        elsif data["trigger"] == @hook[1] && data["processEvery"] != true
             # If called using 'seen', which is hook[1]
             if arguments(data)[0] != nil
                 rs = prettyStat(data, 'seen', sanitize(arguments(data)[0], 'user'))
@@ -61,7 +61,7 @@
                 return sayf(@noSeenArgMessage)
             end
             
-        elsif @tracking == true
+        elsif @tracking == true && data["processEvery"] == true
             if silentSql("SELECT * FROM stats_channel WHERE name = '#{data["channel"]}' AND server_group = '#{data["serverGroup"]}'")[0] == nil && @tracking == true
                 # If new channel
                 recordNewChannel(data)
