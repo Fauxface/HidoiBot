@@ -116,6 +116,10 @@ class BotPlugin
         return s
     end
     
+    def decimalPlace(f)
+        return ((f * 100).round)/100.0
+    end
+    
     def humaniseSeconds(second)
         # Converts seconds in integer to this format, with proper grammar:
         # x years, y months, z, weeks, a days, b hours, c minutes, d seconds
