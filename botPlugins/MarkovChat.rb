@@ -1,6 +1,10 @@
 ﻿# A most horrible chat plugin
 class MarkovChat < BotPlugin
     def initialize
+        require 'json'
+        #require 'json/pure'
+        require 'open-uri'
+        
         # Default Persistent Settings
         @s = {
         # Learn from chat?
@@ -144,8 +148,8 @@ class MarkovChat < BotPlugin
     
     # Hacked-in loading/saving
     def loadBrain
-        b = eval(open("#{@configPath}/#{@brainFile}", 'a+').read)
-        br = eval(open("#{@configPath}/#{@brainRevFile}", 'a+').read)
+        b = JSON.parse(open("#{@configPath}/#{@brainFile}", 'a+').read)
+        br = JSON.parse(open("#{@configPath}/#{@brainRevFile}", 'a+').read)
         
         if b.class == Hash
             @brain = b
@@ -162,29 +166,26 @@ class MarkovChat < BotPlugin
     
     def saveBrain
         f = File.open("#{@configPath}/#{@brainFile}", "w")
-        f.puts @brain
+        
+        f.puts @brain.to_json
         f.close
         
         g = File.open("#{@configPath}/#{@brainRevFile}", "w")
-        g.puts @brainRev
+        g.puts @brainRev.to_json
         g.close
     rescue => e
         handleError(e)
     end
     
     def loadSettings
-        p = eval(open("#{@configPath}/#{@settingsFile}", "a+").read)
-        
-        if p.class == Hash
-            @s = p
-        end
+        @s = JSON.parse(open("#{@configPath}/#{@settingsFile}", "a+").read)
     rescue => e
         handleError(e)
     end
     
     def saveSettings
         f = File.open("#{@configPath}/#{@settingsFile}", "w")
-        f.puts @s
+        f.puts @s.to_json
         f.close
     rescue => e
         handleError(e)
