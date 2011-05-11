@@ -52,6 +52,9 @@ def taskManager
     # Start bot threads
     $bot1MainThread.join
     $bot1TimerThread.join
+rescue => e
+    puts e
+    puts e.backtrace
 end
 
 def startWebrickServer
