@@ -18,7 +18,7 @@ class MarkovChat < BotPlugin
         'maxWords' => 15,
         
         # Saves brain every n learns
-        'learnBufferThreshold' => 7
+        'learnBufferThreshold' => 15
         }
         
         # Other Settings
@@ -237,7 +237,9 @@ class MarkovChat < BotPlugin
         # Handle invalid encoding
         # http://po-ru.com/diary/fixing-invalid-utf-8-in-ruby-revisited/
         ic = Iconv.new('UTF-8//IGNORE', 'UTF-8')
-        s = ic.iconv(s + ' ')[0..-2]
+        # '<<' instead of '+' for performance increase
+        s = ic.iconv(s << ' ')[0..-2]
+        #s = ic.iconv(s + ' ')[0..-2]
         
         # Special, non-punctuation characters with leading space
         #words.gsub!(/ (\[|\\|\^||\||\?|\*|\+|\(|\)|\]|\/|!|@|#|$|%|&|_|-|=|'|"|:|;|>|?|<|,) ?/, '')
@@ -252,8 +254,7 @@ class MarkovChat < BotPlugin
         
         # Downcase
         s = s.downcase
-        #s.force_encoding('UTF-8')
-        
+
         return s
     end
     
