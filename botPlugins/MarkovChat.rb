@@ -166,7 +166,6 @@ class MarkovChat < BotPlugin
     
     def saveBrain
         f = File.open("#{@configPath}/#{@brainFile}", "w")
-        
         f.puts @brain.to_json
         f.close
         
@@ -198,6 +197,7 @@ class MarkovChat < BotPlugin
             # learnLine(paragraph) for longer text - this will create a larger brain file, but will be able to link sentences
             # learnLine(line) will only do sentences for a smaller file
             # Switch out the two blocks for different purposes
+            paragraph = sanitize(paragraph)
             
             #learnLine(paragraph)
             paragraph.split('. ').each{ |line|
@@ -232,6 +232,12 @@ class MarkovChat < BotPlugin
     
     def sanitize(words)
         s = words
+        #s.encode!( 'UTF-8', invalid: :replace, undef: :replace )
+        
+        # Handle invalid encoding
+        # http://po-ru.com/diary/fixing-invalid-utf-8-in-ruby-revisited/
+        ic = Iconv.new('UTF-8//IGNORE', 'UTF-8')
+        s = ic.iconv(s + ' ')[0..-2]
         
         # Special, non-punctuation characters with leading space
         #words.gsub!(/ (\[|\\|\^||\||\?|\*|\+|\(|\)|\]|\/|!|@|#|$|%|&|_|-|=|'|"|:|;|>|?|<|,) ?/, '')
@@ -246,7 +252,8 @@ class MarkovChat < BotPlugin
         
         # Downcase
         s = s.downcase
-    
+        #s.force_encoding('UTF-8')
+        
         return s
     end
     
