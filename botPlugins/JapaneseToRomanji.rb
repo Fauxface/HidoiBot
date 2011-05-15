@@ -105,7 +105,7 @@ class JapaneseToRomanji < BotPlugin
             
             # Specials
             "(emp)", "(x2)", "(ゞ)", 
-            "(emp)", "(x2)", "(ヾ)", "(emp)",
+            "(x2)", "(x2)", "(ヾ)", "(emp)",
             
             # Romanji for Hiragana
             "a", "ka", "sa", "ta", "na", "ha", "ma", "ya", "ra", "wa",
@@ -165,6 +165,7 @@ class JapaneseToRomanji < BotPlugin
         
         # Emphasis for consonants
         reply.gsub!(/\(emp\)(.)/, '\1\1')
+        reply.gsub!(/(.)\(x2\)/, '\1\1')
         return reply
     rescue => e
         handleError(e)
