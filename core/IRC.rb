@@ -95,7 +95,7 @@ class IRC
         message = data["message"]
         message.gsub!(/^help ?/, '')
         hook = message.split(' ')[0]
-
+    
         if hook != nil
             if @pluginHelp[hook] != nil
                 say @pluginHelp[hook]
@@ -153,7 +153,7 @@ class IRC
         send "NICK #{@nickname}"
         send "NICKSERV GHOST #{@nickname}"
     end
-
+    
     def disconnect(*quitMessage)
         begin
             @connection.puts "QUIT #{quitMessage[0]}" if quitMessage[0] != nil
@@ -215,7 +215,7 @@ class IRC
         deleteEventType('pingCheck')
         deleteEventType('pingTimeout')
     end
-
+    
     def main
         loop do
             # This is to force .gets to recheck every second so the bot will know when socket messes up and not hang
@@ -239,13 +239,13 @@ class IRC
     rescue => e
         # When it actually knows the socket is bad
         handleError(e)
-
+    
         if @shutdown == false
             reconnect
             retry
         end
     end
-
+    
     def parseData(data)
         message = data.split(' :')
         message = message[message.size - 1].chomp
@@ -360,12 +360,12 @@ class IRC
     end
     
     def triggerDetection(data)
-        # Triggers are case-sensitive
+        # Triggers are case-insensitive (/./i)
         message = data["message"]
         
-        if /^#{@trigger}/ === message || /^#{@nickname}: / === message
-            message.slice!(/^#{@trigger}/)
-            message.slice!(/^#{@nickname}: /)
+        if /^#{@trigger}/i === message || /^#{@nickname}: /i === message
+            message.slice!(/^#{@trigger}/i)
+            message.slice!(/^#{@nickname}: /i)
             message = message.split(' ')
             
             trigger = message[0]
@@ -466,14 +466,8 @@ class IRC
         puts "SAY TO #{channel}: #{message}"
         
         message = message.to_s
- 
-        #if message.length > @maxMessageLength
-        #    for i in 1..((message.length/@maxMessageLength).floor)
-        #        insertIndex = i * @maxMessageLength
-        #        message.insert(insertIndex, "...\n")
-        #    end
-        #end
-
+        
+        # If a line is too long we split it up to avoid abrupt truncations
         message.each_line("\n") { |s|
             if s.length > @maxMessageLength
                 for i in 1..((message.length/@maxMessageLength).floor)
@@ -488,8 +482,9 @@ class IRC
             sleep(@messageSendDelay)
         }
     end
-
+    
     # HidoiAuth(tm), ENTERPRISE QUALITY
+    # Authentication uses a user's hostname
     def auth(data)
         hostname = data["hostname"]
         password = data["message"].gsub(/^auth /, '')
@@ -527,7 +522,6 @@ class IRC
         @authUsers = Hash.new        
     end   
     
-    # Error Handling
     def handleError(error)
         puts error.message
         puts error.backtrace.join("\n")
