@@ -28,7 +28,7 @@
         @givenLevel = data["authLevel"]
         
         if data["trigger"] == @hook[0]
-            # Recall
+            # Recall URL to give mirror
             mode = 'url'
             term = arguments(data)[0]
         elsif data["trigger"] == @hook[1]
@@ -129,6 +129,7 @@
         reposts = details.size
         
         postId, time, url, user, channel, context = Array.new, Array.new, Array.new, Array.new, Array.new, Array.new
+        mirror = mirrify(recallHashFiletypeFromHash(hash))
         
         for i in 0..(details.size - 1)
             postId.push(details[i][0])
@@ -142,6 +143,20 @@
         rs = "Details for: #{hash}\nTimes seen: #{reposts}.\nFirst posted by #{user.first} at #{time.first} in #{channel.first}"
         rs += "\nLast posted by #{user.last} at #{time.last} in #{channel.last}." if user.size > 1
         rs += "\nOriginal URLs: #{url.uniq.join(', ')}"
+        rs += "\nMirror: #{mirror}"
+        
+        return rs
+    end
+    
+    def recallHashFiletypeFromHash(hash)
+        # Takes URL, returns hash.filetype
+        puts 'ImageSearch: Recalling hash.filetype from hash.'
+        hash = sanitizeHash(hash)
+        
+        filetype = sql("SELECT filetype FROM image WHERE sha256='#{hash}'")[0][0]
+        #filetype = sql("SELECT filetype FROM source WHERE image_id='#{imageId}'")[0]
+        
+        rs = "#{hash}.#{filetype}"
         
         return rs
     end
@@ -153,15 +168,15 @@
         
         imageId = sql("SELECT rowid FROM image WHERE sha256='#{hash}'")[0][0]
         sourceUrls = sql("SELECT url FROM source WHERE image_id='#{imageId}'")[0]
-        puts sourceUrls
+        
         return sourceUrls
     end
     
     def recallHashFromUrl(url)
+        # Takes URL, returns hash.filetype
         puts 'ImageSearch: Recalling hash.filetype from source URL.'
         url = sanitizeUrl(url)
         
-        # Takes URL, returns hash.filetype
         imageHashes = Array.new
         imageId = sql("SELECT image_id FROM source WHERE url='#{url}'")[0]
         
