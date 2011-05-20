@@ -466,15 +466,24 @@ class IRC
         puts "SAY TO #{channel}: #{message}"
         
         message = message.to_s
-        
-        if message.length > @maxMessageLength
-            for i in 1..((message.length/@maxMessageLength).floor)
-                insertIndex = i * @maxMessageLength
-                message.insert(insertIndex, "...\n")
-            end
-        end
-        
+ 
+        #if message.length > @maxMessageLength
+        #    for i in 1..((message.length/@maxMessageLength).floor)
+        #        insertIndex = i * @maxMessageLength
+        #        message.insert(insertIndex, "...\n")
+        #    end
+        #end
+
         message.each_line("\n") { |s|
+            if s.length > @maxMessageLength
+                for i in 1..((message.length/@maxMessageLength).floor)
+                    insertIndex = i * @maxMessageLength
+                    s.insert(insertIndex, "...\n")
+                end
+            end
+        }
+        
+        message.each_line("\n"){ |s|
             @connection.puts "PRIVMSG #{channel} :#{s}"
             sleep(@messageSendDelay)
         }
