@@ -1,4 +1,6 @@
 ﻿# encoding:utf-8
+# TODO: Improve loading of settings, perhaps using JSON
+
 class IRC
     # *botInfo is optional for reload
     def initialize(*botInfo)
@@ -9,8 +11,9 @@ class IRC
         if @connected != true
             timerInitialize
             
-            load 'cfg/botConfig.rb'
-            botSettings
+            configFile = 'cfg/botConfig.rb'
+            load configFile
+            botSettings # This implements the shoddy settings loading in configFile
             coreMapping
             botVariables
             serverSettings(botInfo[0])
@@ -61,7 +64,7 @@ class IRC
         # Pre-defined/Non-plugin triggers
         # Try not to use this for mapping
         
-        # "trigger" => ['eval(this)', auth level],        
+        # "trigger" => ['eval(this)', auth level],
         @coreMapping = {
             "reconnect" => ['reconnect', 3],
             "quit" => ['quit', 3],
@@ -84,7 +87,7 @@ class IRC
         if hook != nil
             # If plugin is called when trigger is detected
             @pluginMapping["#{hook}"] = botModuleName
-        end       
+        end
     end
     
     def doPluginHelp(hook, help)
@@ -95,7 +98,7 @@ class IRC
         message = data["message"]
         message.gsub!(/^help ?/, '')
         hook = message.split(' ')[0]
-    
+        
         if hook != nil
             if @pluginHelp[hook] != nil
                 say @pluginHelp[hook]
@@ -115,17 +118,17 @@ class IRC
     
     def connect
         if @ssl == false
-                timeout(@serverConnectTimeout) do
-                    @connection = TCPSocket.new(@hostname, @port)
-                end
+            timeout(@serverConnectTimeout) do
+                @connection = TCPSocket.new(@hostname, @port)
+            end
             puts "Not using SSL."
         elsif @ssl == true
-                timeout(@serverConnectTimeout) do
-                    @tcp = TCPSocket.new(@hostname, @port)
-                    @connection = OpenSSL::SSL::SSLSocket.new(@tcp)
-                    @connection.connect
-                end
-                puts "Using SSL."
+            timeout(@serverConnectTimeout) do
+                @tcp = TCPSocket.new(@hostname, @port)
+                @connection = OpenSSL::SSL::SSLSocket.new(@tcp)
+                @connection.connect
+            end
+            puts "Using SSL."
         else
             raise "connectError: SSL usage not defined"
         end
@@ -218,7 +221,7 @@ class IRC
     
     def main
         loop do
-            # This is to force .gets to recheck every second so the bot will know when socket messes up and not hang
+            # This is to force .gets to recheck every second so the bot will know when socket messes up and not just hang
             timeout(1) do
                 @s = @connection.gets
             end
@@ -306,7 +309,6 @@ class IRC
                 triggerDetection(data)
                 handleProcessEvery(data)
                 ctcpDetection(data)
-                
             when '001'
                 # When registered
                 registerNickserv if @nickserv == 1
@@ -338,7 +340,7 @@ class IRC
         # This sends data to every plugin that requested to process every PRIVMSG received
         @pluginMapping["processEvery"].each{ |pluginName|
             data["processEvery"] = true
-            runPlugin(pluginName, data)        
+            runPlugin(pluginName, data)
         }
     end
     
@@ -375,14 +377,14 @@ class IRC
             if pluginInfo != nil
                 pluginToRun = pluginInfo["moduleName"]
                 pluginTakesArgs =  pluginInfo["takesArgument"]
-            end           
+            end
             
             if coreToRun != nil
                 puts "Core trigger detected: #{coreToRun}"
                 data["trigger"] = trigger
                 data["message"] = message.join(' ')
                 eval(coreToRun)
-            elsif pluginToRun != nil 
+            elsif pluginToRun != nil
                 puts "Plugin trigger detected: #{pluginToRun}"
                 data["trigger"] = trigger
                 data["message"] = message.join(' ')
@@ -477,7 +479,7 @@ class IRC
             end
         }
         
-        message.each_line("\n"){ |s|
+        message.each_line("\n") { |s|
             @connection.puts "PRIVMSG #{channel} :#{s}"
             sleep(@messageSendDelay)
         }
@@ -504,7 +506,7 @@ class IRC
             say "Deauthenticated."
         else
             say "You are not even authenticated."
-        end    
+        end
     end
     
     def checkAuth(hostname)
@@ -519,7 +521,7 @@ class IRC
     def doDefaultAuth
         load 'cfg/authConfig.rb'
         passwordList
-        @authUsers = Hash.new        
+        @authUsers = Hash.new
     end   
     
     def handleError(error)
