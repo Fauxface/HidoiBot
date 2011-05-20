@@ -218,7 +218,7 @@ class IRC
 
     def main
         loop do
-            # This is to force .gets to recheck every second so the bot will know when socket messes up
+            # This is to force .gets to recheck every second so the bot will know when socket messes up and not hang
             timeout(1) do
                 @s = @connection.gets
             end
@@ -388,7 +388,7 @@ class IRC
                 data["message"] = message.join(' ')
                 runPlugin(pluginToRun, data)
             else
-                puts "triggerDetection: No mapping for #{message.chomp} was found."
+                puts "triggerDetection: No mapping for #{message} was found."
             end
         end
     rescue => e
