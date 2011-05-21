@@ -2,9 +2,9 @@
     def initialize
         # Required plugin stuff
         name = self.class.name
-        hook = ["join", "part"]
+        hook = ["join", "part", "nick"]
         processEvery = false
-        help = "Usage: #{hook} <term>\nFunction: Joins or parts a channel."
+        help = "Usage: #{hook} <term>\nFunction: Joins/parts a channel or changes the bot's nickname."
         super(name, hook, processEvery, help)
     end
 
@@ -21,6 +21,8 @@
                     return "joinChannel('#{channel}')"
                 when 'part'
                     return "partChannel('#{channel}')"
+                when 'nick'
+                    return "send 'NICK #{channel}'"
             end
         else
             return sayf('You are not authorised for this.')
