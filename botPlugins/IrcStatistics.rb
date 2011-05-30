@@ -6,8 +6,17 @@
         hsqlInitialize
         checkStatsTables
         
-        # Is stats tracking on by default?
-        @tracking = true
+        # Default Persistent Settings
+        @s = {
+        'tracking' => true
+        }
+        
+        @settingsFile = "ircStatistics/settings.json"
+        loadSettings
+        
+        # Authorisations
+        @reqConfigAuth = 3
+        @reqStatsAuth = 0
         
         # Strings
         @setOnMessage = "Statistics tracking is now on."
@@ -16,6 +25,7 @@
         @statusOffMessage = "Statistics tracking is currently off."
         @noModeMessage = "I am done looking for nothing."
         @noSeenArgMessage = "I see nobody all the time. Give me somebody to check on."
+        @noAuthMessage = "You are not authorised for this."
         
         # Required plugin stuff
         name = self.class.name
@@ -24,18 +34,35 @@
         help = "Usage: #{@hook[0]} (on|off|status|user <nickname>|channel <name>), #{@hook[1]} <nickname>\nFunction: Handles statistics tracking for IRC. Use #{@hook[1]} to determine when a user last spoke."
         super(name, @hook, processEvery, help)
     end
-
+    
     def main(data)
-        if data["trigger"] == @hook[0] && data["processEvery"] != true
+        @givenLevel = data["authLevel"]
+        
+        if data["processEvery"] == true && data["trigger"] == 'auth'
+            # Not learning auth
+            return nil
+        elsif data["trigger"] == @hook[0] && data["processEvery"] != true
             # If called using 'stats', which is hook[0]
             mode = arguments(data)[0]
-            case mode
-                when 'on'                                                                                                                                                                                                                                                
-                    @tracking = true
-                    return sayf(@setOnMessage)
+            
+            if checkAuth(@reqStatsAuth)
+                case mode
+                when 'on'
+                    if checkAuth(@reqConfigAuth)
+                        @s['tracking'] = true
+                        saveSettings
+                        return sayf(@setOnMessage)
+                    else
+                        return sayf(@noAuthMessage)
+                    end
                 when 'off'
-                    @tracking = false
-                    return sayf(@setOffMessage)
+                    if checkAuth(@reqConfigAuth)
+                        @s['tracking'] = false
+                        saveSettings                
+                        return sayf(@setOffMessage)
+                    else
+                        return sayf(@noAuthMessage)
+                    end
                 when 'status'
                     return sayf(isTracking)
                 when 'user'
@@ -50,19 +77,26 @@
                     data["trigger"] = @hook[1]
                 when nil
                     return sayf(@noModeMessage)
+                end
+            else
+                return sayf(@noAuthMessage)
             end
             
         elsif data["trigger"] == @hook[1] && data["processEvery"] != true
             # If called using 'seen', which is hook[1]
-            if arguments(data)[0] != nil
-                rs = prettyStat(data, 'seen', sanitize(arguments(data)[0], 'user'))
-                return sayf(rs)
+            if checkAuth(@reqStatsAuth)
+                if arguments(data)[0] != nil
+                    rs = prettyStat(data, 'seen', sanitize(arguments(data)[0], 'user'))
+                    return sayf(rs)
+                else
+                    return sayf(@noSeenArgMessage)
+                end
             else
-                return sayf(@noSeenArgMessage)
+                return sayf(@noAuthMessage)
             end
             
-        elsif @tracking == true && data["processEvery"] == true
-            if silentSql("SELECT * FROM stats_channel WHERE name = '#{data["channel"]}' AND server_group = '#{data["serverGroup"]}'")[0] == nil && @tracking == true
+        elsif @s['tracking'] == true && data["processEvery"] == true
+            if silentSql("SELECT * FROM stats_channel WHERE name = '#{data["channel"]}' AND server_group = '#{data["serverGroup"]}'")[0] == nil && @s['tracking'] == true
                 # If new channel
                 recordNewChannel(data)
             else
@@ -75,7 +109,7 @@
             else
                 updateUser(data)
             end
-        
+            
             return nil
         else
             return nil
@@ -86,7 +120,7 @@
     end
     
     def isTracking
-        if @tracking == true
+        if @s['tracking'] == true
             return @statusOnMessage
         else
             return @statusOffMessage
@@ -100,7 +134,7 @@
             string = string.slice(/#[a-z_\-\[\]\\^{}|`][a-z0-9_\-\[\]\\^{}|`]*\z/i)
         end
         
-        return string           
+        return string
     end
     
     def prettyStat(data, mode, term)
@@ -110,79 +144,79 @@
         end
         
         case mode
-            when 'user'
-                userData = silentSql("SELECT nickname, last_message, last_message_time, last_message_channel, message_count, character_count, first_seen FROM stats_user WHERE nickname = '#{term}' AND server_group = '#{data["serverGroup"]}'")[0]
+        when 'user'
+            userData = silentSql("SELECT nickname, last_message, last_message_time, last_message_channel, message_count, character_count, first_seen FROM stats_user WHERE nickname = '#{term}' AND server_group = '#{data["serverGroup"]}'")[0]
+            
+            if userData != nil
+                nickname = userData[0]
+                lastMessage = userData[1]
+                lastMessageTime = Date.parse(userData[2])
+                lastMessageChannel = userData[3]
+                messageCount = userData[4]
+                characterCount = userData[5]
+                firstSeen = Date.parse(userData[6])
+                daysSinceFirstSeen = (Date.today - firstSeen).to_i
+                meanMessageLength = (characterCount/messageCount).to_i
                 
-                if userData != nil
-                    nickname = userData[0]
-                    lastMessage = userData[1]
-                    lastMessageTime = Date.parse(userData[2])
-                    lastMessageChannel = userData[3]
-                    messageCount = userData[4]
-                    characterCount = userData[5]
-                    firstSeen = Date.parse(userData[6])
-                    daysSinceFirstSeen = (Date.today - firstSeen).to_i
-                    meanMessageLength = (characterCount/messageCount).to_i
-                    
-                    if daysSinceFirstSeen == 0
-                        meanMessagesPerDay = messageCount.to_i
-                    elsif daysSinceFirstSeen > 0
-                        meanMessagesPerDay = messageCount / daysSinceFirstSeen
-                    end
-                    
-                    return ("Stats for user #{nickname}:\nLast seen on #{lastMessageTime}, saying \'#{lastMessage}\' in #{lastMessageChannel}\nMessage count: #{messageCount}, Character count: #{characterCount}, Means: #{meanMessageLength}char/msg, #{meanMessagesPerDay}msg/day\nFirst seen on #{firstSeen}, #{daysSinceFirstSeen} days ago.")
-                else
-                    return "User #{term} was not found. Note: This is case-sensitive."
+                if daysSinceFirstSeen == 0
+                    meanMessagesPerDay = messageCount.to_i
+                elsif daysSinceFirstSeen > 0
+                    meanMessagesPerDay = messageCount / daysSinceFirstSeen
                 end
                 
-            when 'channel'
-                channelData = silentSql("SELECT name, message_count, character_count, first_seen, last_activity FROM stats_channel WHERE name='#{term}' AND server_group = '#{data["serverGroup"]}'")[0]
+                return ("Stats for user #{nickname}:\nLast seen on #{lastMessageTime}, saying \'#{lastMessage.rstrip.lstrip}\' in #{lastMessageChannel}\nMessage count: #{messageCount}, Character count: #{characterCount}, Means: #{meanMessageLength}char/msg, #{meanMessagesPerDay}msg/day\nFirst seen on #{firstSeen}, #{daysSinceFirstSeen} days ago.")
+            else
+                return "User #{term} was not found. Note: This is case-sensitive."
+            end
+            
+        when 'channel'
+            channelData = silentSql("SELECT name, message_count, character_count, first_seen, last_activity FROM stats_channel WHERE name='#{term}' AND server_group = '#{data["serverGroup"]}'")[0]
+            
+            if channelData != nil
+                name = channelData[0]
+                messageCount = channelData[1]
+                characterCount = channelData[2]
+                firstSeen = channelData[3]
+                lastActivity = channelData[4]
+                daysSinceFirstSeen = (Date.today - Date.parse(firstSeen)).to_i
+                meanMessageLength = (characterCount/messageCount).to_i
                 
-                if channelData != nil
-                    name = channelData[0]
-                    messageCount = channelData[1]
-                    characterCount = channelData[2]
-                    firstSeen = channelData[3]
-                    lastActivity = channelData[4]
-                    daysSinceFirstSeen = (Date.today - Date.parse(firstSeen)).to_i
-                    meanMessageLength = (characterCount/messageCount).to_i
-                    
-                    if daysSinceFirstSeen == 0
-                        meanMessagesPerDay = messageCount.to_i
-                    elsif daysSinceFirstSeen > 0
-                        meanMessagesPerDay = messageCount / daysSinceFirstSeen
-                    end
-                    
-                    return ("Stats for channel #{name}:\nLast activity: #{lastActivity}\nMessage count: #{messageCount}, Character count: #{characterCount}, Means: #{meanMessageLength}char/msg, #{meanMessagesPerDay}msg/day\nFirst seen on #{firstSeen}, #{daysSinceFirstSeen} days ago.")
-                else
-                    return "Channel #{term} was not found. Note: This is case-sensitive."
+                if daysSinceFirstSeen == 0
+                    meanMessagesPerDay = messageCount.to_i
+                elsif daysSinceFirstSeen > 0
+                    meanMessagesPerDay = messageCount / daysSinceFirstSeen
                 end
                 
-            when 'seen'
-                userData = silentSql("SELECT nickname, last_message, last_message_time, last_message_channel FROM stats_user WHERE nickname = '#{term}' AND server_group = '#{data["serverGroup"]}'")[0]
-
-                if userData != nil
-                    nickname = userData[0]
-                    lastMessage = userData[1]
-                    lastMessageTime = Time.parse(userData[2])
-                    lastMessageChannel = userData[3]
-                    
-                    lsInSec = Time.now.to_i - lastMessageTime.to_i
-                    lsaf = humaniseSeconds(lsInSec)
-                    
-                    rs = "#{nickname}: Last seen #{lsaf} ago in #{lastMessageChannel}, saying \'#{lastMessage}\'."
-
-                    if @tracking == false
-                        rs += "\nNote: Statistics tracking is off -- data might not be accurate."
-                    end
-                    
-                    return rs
-                else
-                    return "User #{term} was not found. Note: This is case-sensitive."
+                return ("Stats for channel #{name}:\nLast activity: #{lastActivity}\nMessage count: #{messageCount}, Character count: #{characterCount}, Means: #{meanMessageLength}char/msg, #{meanMessagesPerDay}msg/day\nFirst seen on #{firstSeen}, #{daysSinceFirstSeen} days ago.")
+            else
+                return "Channel #{term} was not found. Note: This is case-sensitive."
+            end
+            
+        when 'seen'
+            userData = silentSql("SELECT nickname, last_message, last_message_time, last_message_channel FROM stats_user WHERE nickname = '#{term}' AND server_group = '#{data["serverGroup"]}'")[0]
+            
+            if userData != nil
+                nickname = userData[0]
+                lastMessage = userData[1]
+                lastMessageTime = Time.parse(userData[2])
+                lastMessageChannel = userData[3]
+                
+                lsInSec = Time.now.to_i - lastMessageTime.to_i
+                lsaf = humaniseSeconds(lsInSec)
+                
+                rs = "#{nickname}: Last seen #{lsaf} ago in #{lastMessageChannel}, saying \'#{lastMessage.rstrip.lstrip}\'."
+                
+                if @s['tracking'] == false
+                    rs += "\nNote: Statistics tracking is off -- data might not be accurate."
                 end
+                
+                return rs
+            else
+                return "User #{term} was not found. Note: This is case-sensitive."
+            end
         end
     end
-
+    
     def recordNewUser(data)
         escapedMessage = escapeSyntaxHard(data["message"])
         active = true
