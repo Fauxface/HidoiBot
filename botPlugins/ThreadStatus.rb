@@ -1,5 +1,11 @@
 ﻿class ThreadStatus < BotPlugin
     def initialize
+        # Authorisations
+        @requiredAuth = 0
+        
+        # Strings
+        @noAuthMsg = "You are not authorised for this."
+        
         # Required plugin stuff
         name = self.class.name
         hook = 'threads'
@@ -10,23 +16,18 @@
 
     def main(data)
         @givenLevel = data["authLevel"]
-        return "say '#{threadInfo}'"
+        
+        if authCheck(@requiredAuth)
+            return sayf(threadInfo)
+        else
+            return sayf(@noAuthMsg)
+        end
     rescue => e
         handleError(e)
         return nil
     end
     
     def threadInfo()
-        requiredAuth = 3
-        if authCheck(requiredAuth)
-            rs = ''
-            Thread.list.map {|x|
-                #rs = rs + "#{x.inspect}: #{x[:name]}\n"
-                rs = rs + "#{x.inspect}\n"
-            }
-            return rs
-        else
-            return nil
-        end
-	end
+        return Thread.list.join("\n")
+    end
 end

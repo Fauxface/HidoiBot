@@ -19,7 +19,7 @@ class MpcSync < BotPlugin
         @syncDelay = 3
         
         # Is bot cocked on load
-        @cocked = false        
+        @cocked = false
         
         # Authorisations
         @reqCockAuth = 3
@@ -28,8 +28,8 @@ class MpcSync < BotPlugin
         
         # Strings
         @notAuthorisedMessage = 'You are not authorised for this.'
-        @cockedMessage = "File cocked."
-        @decockedMessage = "File decocked."
+        @cockedMessage = "Player cocked."
+        @decockedMessage = "Player decocked."
         @notEvenCockedMessage = "How am I to decock when you don't even have a cock up?"
         @isCockedMessage = 'Long and ready.'
         @isNotCockedMessage = 'Definitely not long and ready.'
@@ -62,72 +62,67 @@ class MpcSync < BotPlugin
         end
         
         case mode
-            when 'cock'
-                # So that we do not call mpcListen again when cock is called multiple times
-                requiredLevel = @reqCockAuth
-                if authCheck(requiredLevel)
-                    mpcListen if @cocked == false
-                    @cocked = true
-                    @cockedChannel = data["channel"]
-                    nowPlayingInfo = nowPlaying
-                    
-                    if nowPlayingInfo == @cannotGetNpMessage
-                        return sayf(@cockedMessage + ' ' + @butCannotGetNpMessage)
-                    else
-                        return sayf(@cockedMessage + ' ' + nowPlayingInfo)
-                    end
-                else
-                    return sayf(@notAuthorisedMessage)
-                end
+        when 'cock'
+            # So that we do not call mpcListen again when cock is called multiple times
+            requiredLevel = @reqCockAuth
+            if authCheck(requiredLevel)
+                mpcListen if @cocked == false
+                @cocked = true
+                @cockedChannel = data["channel"]
+                nowPlayingInfo = nowPlaying
                 
-            when /(decock|uncock)/
-                requiredLevel = @reqCockAuth
-                if authCheck(requiredLevel)
-                    if @cocked == true
-                        @cocked = false 
-                        return sayf(@decockedMessage)
-                    else
-                        return sayf(@notEvenCockedMessage)
-                    end
+                if nowPlayingInfo == @cannotGetNpMessage
+                    return sayf(@cockedMessage + ' ' + @butCannotGetNpMessage)
                 else
-                    return sayf(@notAuthorisedMessage)
+                    return sayf(@cockedMessage + ' ' + nowPlayingInfo)
                 end
-                
-            when 'cockstatus'
-                requiredLevel = @reqCockAuth
-                if authCheck(requiredLevel)
-                    if @cocked == true
-                        return sayf(@isCockedMessage)
-                    else
-                        return sayf(@isNotCockedMessage)
-                    end
-                else
-                    return sayf(@notAuthorisedMessage)
-                end
-                
-            when /(playing|np|nowplaying)/
-                requiredLevel = @reqNpAuth
-                if authCheck(requiredLevel)
-                    return sayf(nowPlaying)
-                else
-                    return sayf(@notAuthorisedMessage)
-                end
-                
-            when 'sync'
-                requiredLevel = @reqSyncAuth
-                if authCheck(requiredLevel)
-                    connectionInfo = stripTrigger(data).gsub('sync ', '').split(',')
-                    syncPlayers(connectionInfo)
-                    return sayf(@syncingMessage)
-                else
-                    return sayf(@notAuthorisedMessage)
-                end
-                
             else
-                requiredLevel = @reqNpAuth
-                if authCheck(requiredLevel)
-                    return sayf(nowPlaying)
+                return sayf(@notAuthorisedMessage)
+            end            
+        when /(decock|uncock)/
+            requiredLevel = @reqCockAuth
+            if authCheck(requiredLevel)
+                if @cocked == true
+                    @cocked = false 
+                    return sayf(@decockedMessage)
+                else
+                    return sayf(@notEvenCockedMessage)
                 end
+            else
+                return sayf(@notAuthorisedMessage)
+            end
+        when 'cockstatus'
+            requiredLevel = @reqCockAuth
+            if authCheck(requiredLevel)
+                if @cocked == true
+                    return sayf(@isCockedMessage)
+                else
+                    return sayf(@isNotCockedMessage)
+                end
+            else
+                return sayf(@notAuthorisedMessage)
+            end
+        when /(playing|np|nowplaying)/
+            requiredLevel = @reqNpAuth
+            if authCheck(requiredLevel)
+                return sayf(nowPlaying)
+            else
+                return sayf(@notAuthorisedMessage)
+            end
+        when 'sync'
+            requiredLevel = @reqSyncAuth
+            if authCheck(requiredLevel)
+                connectionInfo = stripTrigger(data).gsub('sync ', '').split(',')
+                syncPlayers(connectionInfo)
+                return sayf(@syncingMessage)
+            else
+                return sayf(@notAuthorisedMessage)
+            end
+        else
+            requiredLevel = @reqNpAuth
+            if authCheck(requiredLevel)
+                return sayf(nowPlaying)
+            end
         end
     end
     
@@ -178,7 +173,7 @@ class MpcSync < BotPlugin
                     info.gsub!(' ','')
                     addr = info.split(':')[0]
                     port = info.split(':')[1].to_i
-
+                    
                     mpcSocket = UDPSocket.new
                     mpcSocket.connect(addr, port)
                     mpcSocket.send "GO!", 0

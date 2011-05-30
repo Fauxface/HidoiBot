@@ -185,7 +185,6 @@ class BotPlugin
     end
     
     def loadSettings
-        puts "loading"
         @configPath = 'botPlugins/settings/'
         @s = JSON.parse(open("#{@configPath}/#{@settingsFile}", "a+").read)
     rescue => e
@@ -193,7 +192,6 @@ class BotPlugin
     end
     
     def saveSettings
-        puts "saving"
         @configPath = 'botPlugins/settings/'
         f = File.open("#{@configPath}/#{@settingsFile}", "w")
         f.puts @s.to_json
