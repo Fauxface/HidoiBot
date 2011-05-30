@@ -3,24 +3,25 @@ class ImageScraper < BotPlugin
     require 'digest/sha2'
     require 'open-uri'
     require 'timeout'
-
+    
     def initialize
         extend WebUI
         extend HidoiSQL
         hsqlInitialize
-
+        
+        # Default Persistent Settings
+        @s = {
+            'scraping' => true,
+            'doGenerateLast' => true,
+            'imageScrapeTimeout' => 90
+        }
+        
+        @settingsFile = "imageScraper/settings.json"
+        loadSettings
+        
         # Settings
         @imageDirectory = 'public/i'
         $imageServeDirectoryFromPublic = 'i'
-        
-        # Maximum amount of time allowed for image saving
-        @imageScrapeTimeout = 90
-        
-        # Do we generate last10.html
-        @doGenerateLast = true
-        
-        # Is image scraping on by default
-        @scraping = true 
         
         # Strings
         @scrapeOnMessage = 'Image scraping is now on.'
@@ -43,44 +44,40 @@ class ImageScraper < BotPlugin
         help = "Usage: #{@hook} (on|off|status)\nFunction: Changes image scraping setting."
         super(name, @hook, processEvery, help)
     end
-
+    
     def main(data)
         @givenLevel = data["authLevel"]
         
         url = urlDetection(data)
-        
-        if data["trigger"] == @hook
-            puts "ImageScraper: Not scraping image URL in trigger"
-            url = nil
-            mode = nil
-            
-        elsif data["trigger"] == @hook
+        mode = detectMode(data)
+
+        if data["trigger"] == @hook && data['processEvery'] != true
             # If called using hook
             requiredLevel = @reqAuthLevel
             
             if checkAuth(requiredLevel)
                 mode = arguments(data)[0]
+                
+                case mode
+                when 'on'
+                    @s['scraping'] = true
+                    saveSettings
+                    return sayf(@scrapeOnMessage)
+                when 'off'
+                    @s['scraping'] = false
+                    saveSettings
+                    return sayf(@scrapeOffMessage)
+                when 'status'
+                    return sayf(getScrapeStatus)
+                end
             else
                 return @notAuthorisedMessage
             end
-            
         elsif url != nil && data['processEvery'] == true
             # Scrape image if url detected
-            imageScrape(url['url'], data) if @scraping == true
-            mode = nil
+            imageScrape(url['url'], data) if @s['scraping'] == true
         end
         
-        case mode
-            when 'on'
-                @scraping = true
-                return sayf(@scrapeOnMessage)
-            when 'off'
-                @scraping = false
-                return sayf(@scrapeOffMessage)
-            when 'status'
-                return sayf(getScrapeStatus)
-        end
-           
         return nil
     rescue => e
         handleError(e)
@@ -88,11 +85,7 @@ class ImageScraper < BotPlugin
     end
     
     def getScrapeStatus
-        if @scraping == true
-            return @scrapingIsOnMessage
-        elsif @scraping == false
-            return @scrapingIsOffMessage        
-        end
+        return "Image scraping: #{@s['scraping']}, Last few images page generation: #{@s['doGenerateLast']}"
     end
     
     def urlDetection(data)
@@ -128,7 +121,7 @@ class ImageScraper < BotPlugin
         temporaryFilename = "#{@imageDirectory}/temp_#{Time.now.to_i}"
         
         # IB's image-saving code
-        timeout(@imageScrapeTimeout) do
+        timeout(@s['imageScrapeTimeout']) do
             File.open(temporaryFilename, 'wb'){ |ofh|
                 open(imgUrl) { |ifh|
                     ofh.write(ifh.read(4096)) while !ifh.eof?
@@ -155,7 +148,7 @@ class ImageScraper < BotPlugin
             sFiletype = urlData[urlData.size - 1]
             sSHA256 = getSHA256(temporaryFilename)
             sMD5 = getMD5(temporaryFilename)
-
+            
             newFilename = "#{@imageDirectory}/#{sSHA256}.#{sFiletype}"
             
             # If there is no filename conflict, commit temporary file
@@ -183,7 +176,7 @@ class ImageScraper < BotPlugin
         puts "ImageScraper: #{newFilename} successfully saved. Size: #{sFilesize/1024}kB" if duplicate == false
           
         # Generate last10.html
-        generateLast if @doGenerateLast == true
+        generateLast if @s['doGenerateLast'] == true
     rescue Timeout::Error
         puts "ImageScraper: Unable to save image: Timeout (#{@imageScrapeTimeout}s)"
     rescue => e
@@ -284,7 +277,7 @@ class ImageScraper < BotPlugin
               height integer
             )
         ')
-    
+        
         # Table source
         silentSql ('
             CREATE TABLE IF NOT EXISTS source
@@ -297,30 +290,10 @@ class ImageScraper < BotPlugin
               context text
             )
         ')
-
+        
         # Index source
         silentSql ('
             CREATE INDEX IF NOT EXISTS source_image_idx ON source (image_id DESC)
         ')
-    end
-    
-    # Unused, jpeg considerd :complex:
-    def getImageDimensions(filename)
-        extension = File.ext?(filename)
-        case extension
-            when 'png'
-                dimensions = IO.read(filename)[0x10..0x18].unpack('NN')
-            when 'bmp'
-                d = IO.read('image.bmp')[14..28]
-                d[0] == 40 ? d[4..-1].unpack('LL') : d[4..8].unpack('SS')
-            when 'gif'
-                dimensions = IO.read('image.gif')[6..10].unpack('SS')
-            when 'jpg'
-            when 'jpeg'
-        end
-    end
-    
-    def getImageInfo(filename)
-        # Get stuff like MIME, dimensions, size
     end
 end
