@@ -1,5 +1,9 @@
 ﻿# encoding:utf-8
 class BotPlugin
+    if !require 'json'
+        require 'json/pure'
+    end
+    
     def initialize(botModuleName, hook, processEvery, *help)
         # Make a doBotsMapping method
         if hook.class == Array and hook.size > 1
@@ -178,6 +182,24 @@ class BotPlugin
         end
 
         return humanDate.join(", ")      
+    end
+    
+    def loadSettings
+        puts "loading"
+        @configPath = 'botPlugins/settings/'
+        @s = JSON.parse(open("#{@configPath}/#{@settingsFile}", "a+").read)
+    rescue => e
+        handleError(e)
+    end
+    
+    def saveSettings
+        puts "saving"
+        @configPath = 'botPlugins/settings/'
+        f = File.open("#{@configPath}/#{@settingsFile}", "w")
+        f.puts @s.to_json
+        f.close
+    rescue => e
+        handleError(e)
     end
     
     def handleError(e)

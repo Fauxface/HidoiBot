@@ -24,17 +24,19 @@ class MarkovChat < BotPlugin
         # Other Settings
         # Shortens sentences by terminating chains when a link's strength is too weak.
         # This should improve with increasing brain size; set to a small number if your bot is dim-witted
-        @gibberishTerminator = 0.01
+        @gibberishTerminator = 0.005
         
         # Markov chain length
         @chainLength = 2
         
         # Paths
-        @configPath = "botPlugins/settings/markovChat"
+        #@configPath = "botPlugins/settings/markovChat"
+        @markovSettingsPath = "botPlugins/settings/markovChat" # for brain
         @trainingFile = "braintrain.txt"
         @brainFile = "brain.rb"
         @brainRevFile = "brainRev.rb"
-        @settingsFile = "chatSettings.txt"
+        #@settingsFile = "chatSettings.txt"
+        @settingsFile = "markovChat/chatSettings.txt"
         
         # Initialization stuff
         @brain = Hash.new
@@ -84,7 +86,7 @@ class MarkovChat < BotPlugin
                 @s['learning'] = true
                 saveSettings
                 return sayf(@learnOnMsg)
-                
+            
             elsif mode == 'learnoff' && checkAuth(@reqLearningAuth)
                 @s['learning'] = false
                 saveSettings
@@ -146,10 +148,9 @@ class MarkovChat < BotPlugin
         return nil
     end
     
-    # Hacked-in loading/saving
     def loadBrain
-        b = JSON.parse(open("#{@configPath}/#{@brainFile}", 'a+').read)
-        br = JSON.parse(open("#{@configPath}/#{@brainRevFile}", 'a+').read)
+        b = JSON.parse(open("#{@markovSettingsPath}/#{@brainFile}", 'a+').read)
+        br = JSON.parse(open("#{@markovSettingsPath}/#{@brainRevFile}", 'a+').read)
         
         if b.class == Hash
             @brain = b
@@ -165,31 +166,17 @@ class MarkovChat < BotPlugin
     end
     
     def saveBrain
-        f = File.open("#{@configPath}/#{@brainFile}", "w")
+        f = File.open("#{@markovSettingsPath}/#{@brainFile}", "w")
         f.puts @brain.to_json
         f.close
         
-        g = File.open("#{@configPath}/#{@brainRevFile}", "w")
+        g = File.open("#{@markovSettingsPath}/#{@brainRevFile}", "w")
         g.puts @brainRev.to_json
         g.close
     rescue => e
         handleError(e)
     end
-    
-    def loadSettings
-        @s = JSON.parse(open("#{@configPath}/#{@settingsFile}", "a+").read)
-    rescue => e
-        handleError(e)
-    end
-    
-    def saveSettings
-        f = File.open("#{@configPath}/#{@settingsFile}", "w")
-        f.puts @s.to_json
-        f.close
-    rescue => e
-        handleError(e)
-    end
-    
+
     def trainBrainWithFile(file = @trainingFile)
         trainingText = open("#{@configPath}/#{file}", 'r').readlines
         
@@ -223,23 +210,18 @@ class MarkovChat < BotPlugin
         
         for i in 0..words.size - (@chainLength)
             pushBrain(words[i..(i+chainLength)].join(' '), words[i + chainLength + 1])
-            
             words.reverse!
             pushBrainRev(words[i..(i+chainLength)].join(' '), words[i + chainLength + 1])
             words.reverse!
         end
     end
     
-    def sanitize(words)
-        s = words
-        #s.encode!( 'UTF-8', invalid: :replace, undef: :replace )
-        
+    def sanitize(s=words)
         # Handle invalid encoding
         # http://po-ru.com/diary/fixing-invalid-utf-8-in-ruby-revisited/
-        ic = Iconv.new('UTF-8//IGNORE', 'UTF-8')
         # '<<' instead of '+' for performance increase
+        ic = Iconv.new('UTF-8//IGNORE', 'UTF-8')        
         s = ic.iconv(s << ' ')[0..-2]
-        #s = ic.iconv(s + ' ')[0..-2]
         
         # Special, non-punctuation characters with leading space
         #words.gsub!(/ (\[|\\|\^||\||\?|\*|\+|\(|\)|\]|\/|!|@|#|$|%|&|_|-|=|'|"|:|;|>|?|<|,) ?/, '')
@@ -254,17 +236,13 @@ class MarkovChat < BotPlugin
         
         # Downcase
         s = s.downcase
-
+        
         return s
     end
     
     def cleanOutput(sentence)
-        # i -> I
-        parsedSentence = sentence.gsub(/("|'| )i( |,|-)/, ' I ')
-        
-        # Trailing/Leading whitespace
-        parsedSentence = parsedSentence.lstrip.rstrip
-        
+        parsedSentence = sentence.gsub(/("|'| )i( |,|-)/, ' I ') # i -> I
+        parsedSentence = parsedSentence.lstrip.rstrip # Trailing/Leading whitespace
         parsedSentence = parsedSentence.upcase
         
         return parsedSentence
@@ -274,14 +252,14 @@ class MarkovChat < BotPlugin
     def pushBrain(word1, word2)
         wordStart = word1.split(' ')[0]
         
-        # For chains
+        # If the chain already exists, we increment the count
+        # Else, we insert it into the brain
         if @brain[word1] != nil
             if @brain[word1][word2] != nil
                 @brain[word1][word2] = @brain[word1][word2] + 1
             else
                 @brain[word1][word2] = 1
             end
-            
         else
             @brain[word1] = Hash.new
             @brain[word1][word2] = 1
@@ -294,7 +272,6 @@ class MarkovChat < BotPlugin
             else
                 @brain[wordStart][word1]
             end
-            
         else
             @brain[wordStart] = Hash.new
             @brain[wordStart][word1] = 1
@@ -311,7 +288,6 @@ class MarkovChat < BotPlugin
             else
                 @brainRev[word1][word2] = 1
             end
-            
         else
             @brainRev[word1] = Hash.new
             @brainRev[word1][word2] = 1
@@ -323,35 +299,31 @@ class MarkovChat < BotPlugin
             else
                 @brainRev[wordStart][word1]
             end
-            
         else
             @brainRev[wordStart] = Hash.new
             @brainRev[wordStart][word1] = 1
         end
     end
     
-    def getProbWord(word, direction)
+    def getProbWord(word, direction)        
         keys = Array.new
         counts = Array.new
         
         if direction == 'forward'
             if @brain[word] != nil
-            
                 @brain[word].each{ |pword|
                     keys.push (pword[0])
                     counts.push (pword[1])
                 }
-                
             else
                 # End of chain
                 return nil
             end
-            
+        
         elsif direction == 'reverse'
             word = word.split(' ').reverse.join(' ')
             
             if @brainRev[word] != nil
-            
                 @brainRev[word].each{ |pword|
                     keys.push (pword[0])
                     counts.push (pword[1])
@@ -361,15 +333,15 @@ class MarkovChat < BotPlugin
             end
         end
         
+        # Randomise word selection after options are weighed
         probs = counts.map{ |x|
-                #Math::sqrt(x) * rand() # Gibberish reduction attempt
                 x * rand()
             }
         
         chosenIndex = probs.each_with_index.max[1]
         
-        # Another attempt at reducing gibberish, only use stronger word chains?        
         if counts[chosenIndex] * probs[chosenIndex] <= @gibberishTerminator
+            # Link is terminated if it's not strong enough
             return nil
         else
             # You're a winner!
@@ -401,7 +373,6 @@ class MarkovChat < BotPlugin
             seedFor = "#{seeds.last}"
             
             return makeSentence(seedRev, seedFor, seedSentence)
-            
         elsif seeds.size == 1
             # If input is a word
             return makeSentence(seeds[0][0], seeds[0][0], seeds[0][0])
@@ -415,13 +386,22 @@ class MarkovChat < BotPlugin
         
         reverseString = makeChain(seedRev.downcase, 'reverse') 
         forwardString = makeChain(seedFor.downcase)
-        
         rawSentence = stripWordsFromEnd(reverseString, 1) + " #{seeds} " + stripWordsFromStart(forwardString, 1)
         
         return cleanOutput(rawSentence)
     end
     
     def makeChain(seed, direction='forward')
+        # Basically this:
+        #   1. chain1           -> chain2    # p = rand(count) = 1, picked
+        #   2. lastWordOfChain2 -> chain3    # p = 3, picked
+        #                       -> chain4    # p = 2
+        #                       -> nil       # p = 2, nil terminates chain
+        #   3. lastWordOfChain3 -> chain4    # p = 1
+        #                       -> chain5    # p = 2, picked
+        #                       -> chain6    # p = 0 
+        # and so on until either the limit is hit or the chain is terminal
+        
         sentence = Array.new
         appendWord = String.new
         
@@ -457,7 +437,6 @@ class MarkovChat < BotPlugin
         if rand < @s['chipInP']
             topic = data["message"].split(' ')
             topic = [topic[rand(topic.size)]]
-            
             wittyAttempt = makeSentence(topic[0], topic[0], topic[0])
             
             if wittyAttempt.length > 0 && wittyAttempt != topic && wittyAttempt != data["message"].upcase
