@@ -1,7 +1,7 @@
 ﻿# encoding:utf-8
 class BotPlugin
     if !require 'json'
-        require 'json/pure'
+        require 'json_pure'
     end
     
     def initialize(botModuleName, hook, processEvery, *help)
