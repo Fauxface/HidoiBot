@@ -12,13 +12,13 @@ Pull the source and install the following stuff:
 Absolutely required:
     Ruby - tested on version 1.9.2
     rubygems - this should come with a Ruby install
+    json or json/pure - 'gem install json' or 'gem install json_pure'
 
 Pretty much required:
     nokogiri - to install do 'gem install nokogiri', this gem is used in many default plugins
     
 Might be required - if you're getting an error try these:
     sqlite3 - 'gem install sqlite3'
-    json or json_pure - 'gem install json' or 'gem install json_pure'
 
 Stuff you might want:
     A proper webserver on the bot's computer, such as Apache2 or lighttpd
