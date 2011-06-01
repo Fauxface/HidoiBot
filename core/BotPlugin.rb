@@ -1,7 +1,13 @@
 ﻿# encoding:utf-8
 class BotPlugin
-    if !require 'json'
-        require 'json_pure'
+    begin
+        require 'json'
+    rescue LoadError
+        begin
+            require 'json_pure'
+        rescue LoadError
+            puts '"json" and "json_pure" gems not found. Some plugins might not work correctly.'
+        end
     end
     
     def initialize(botModuleName, hook, processEvery, *help)
