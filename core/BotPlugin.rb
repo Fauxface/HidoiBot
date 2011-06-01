@@ -120,13 +120,78 @@ class BotPlugin
     end
     
     def bold(s)
-        boldChar = "\x02"
+        boldChar = "\002"
         s.insert(0, boldChar)
         s.insert(s.size, boldChar)
+        
         return s
     end
     
+    def italic(s)
+        # Or oblique, whichever floats your boat
+        italicChar = "\011"
+        s.insert(0, italicChar)
+        s.insert(s.size, italicChar)
+        
+        return s
+    end
+    
+    def colour(s, textColour, highlightColour=nil)
+        colourChar = "\003"
+
+        if !isColour?(textColour)
+            raise "textColour is not a vaild colour code (0-15) textColour: #{textColour}"
+        elsif !isColour?(highlightColour) && highlightColour != nil
+            raise "highlightColour is not a vaild colour code (0-15) highlightColour: #{textColour}"
+        end
+        
+        if highlightColour != nil
+            colourCodes = "#{textColour},#{highlightColour}"
+        elsif highlightColour == nil
+            colourCodes = "#{textColour}"
+        end
+        
+        s.insert(0, colourCodes)
+        s.insert(0, colourChar)
+        s.insert(s.size, colourChar)
+        
+        return s
+    rescue => e
+        handleError(e)
+        return s
+    end
+    
+    def isColour?(colourCode)
+        if /^(0{0,1}[0-9]|[0-1][0-5]?)$/ === "#{colourCode}" # Checks for range 0-15
+            return true
+        else
+            return false
+        end
+    end
+    
+    def underline(s)
+        underlineChar = "\037"
+        s.insert(0, underlineChar)
+        s.insert(s.size, underlineChar)
+        
+        return s
+    end
+    
+    def reverseColour(s)
+        reverseChar  = "\026"
+        s.insert(0, reverseChar)
+        s.insert(s.size, reverseChar)
+        
+        return s
+    end
+    
+    def clearCodes()
+        normalChar = "\017"
+        return normalChar
+    end
+    
     def decimalPlace(f)
+        # To two decimal places
         return ((f * 100).round)/100.0
     end
     
