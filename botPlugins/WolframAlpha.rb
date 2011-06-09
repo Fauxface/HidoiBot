@@ -14,7 +14,7 @@
         
         # Required plugin stuff
         name = self.class.name
-        hook = ["wolfram"]
+        hook = "wolfram"
         processEvery = false
         help = "Usage: #{hook} <*all> <searchterm>\nFunction: Returns Wolfram|Alpha results in text form."
         super(name, hook, processEvery, help)
