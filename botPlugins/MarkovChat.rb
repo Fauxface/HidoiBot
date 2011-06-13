@@ -18,7 +18,7 @@ class MarkovChat < BotPlugin
         'maxWords' => 15,
         
         # Saves brain every n learns
-        'learnBufferThreshold' => 15
+        'learnBufferThreshold' => 20
         }
         
         # Other Settings
@@ -207,19 +207,26 @@ class MarkovChat < BotPlugin
     
     def addChain(words)
         chainLength = @chainLength - 1
+        terminatingIndex = words.size - @chainLength
         
         for i in 0..words.size - (@chainLength)
-            pushBrain(words[i..(i+chainLength)].join(' '), words[i + chainLength + 1])
-            words.reverse!
-            pushBrainRev(words[i..(i+chainLength)].join(' '), words[i + chainLength + 1])
-            words.reverse!
+            if i < terminatingIndex
+                pushBrain(words[i..(i+chainLength)].join(' '), words[i + chainLength + 1])
+                words.reverse!
+                pushBrainRev(words[i..(i+chainLength)].join(' '), words[i + chainLength + 1])
+                words.reverse!
+            else
+                pushBrain(words[i..(i+chainLength)].join(' '), nil)
+                words.reverse!
+                pushBrainRev(words[i + chainLength], nil)
+                words.reverse!
+            end
         end
     end
     
     def sanitize(s=words)
         # Handle invalid encoding
         # http://po-ru.com/diary/fixing-invalid-utf-8-in-ruby-revisited/
-        # '<<' instead of '+' for performance increase
         ic = Iconv.new('UTF-8//IGNORE', 'UTF-8')        
         s = ic.iconv(s << ' ')[0..-2]
         
@@ -243,7 +250,8 @@ class MarkovChat < BotPlugin
     def cleanOutput(sentence)
         parsedSentence = sentence.gsub(/("|'| )i( |,|-)/, ' I ') # i -> I
         parsedSentence = parsedSentence.lstrip.rstrip # Trailing/Leading whitespace
-        parsedSentence = parsedSentence.upcase
+        #parsedSentence = parsedSentence.upcase # Capitalises everything
+        parsedSentence[0] = parsedSentence[0].upcase # Capitalises only the first letter
         
         return parsedSentence
     end
@@ -312,8 +320,8 @@ class MarkovChat < BotPlugin
         if direction == 'forward'
             if @brain[word] != nil
                 @brain[word].each{ |pword|
-                    keys.push (pword[0])
-                    counts.push (pword[1])
+                    keys.push (pword[0]) # Adds available keys (linking chains ie. pword[0]) to array 'keys'
+                    counts.push (pword[1]) # Add respective frequencies (ie. pword[1]) to array 'counts'
                 }
             else
                 # End of chain
@@ -334,17 +342,19 @@ class MarkovChat < BotPlugin
         end
         
         # Randomise word selection after options are weighed
-        probs = counts.map{ |x|
-                x * rand()
+        probs = counts.map { |x|
+                rand(Math.log(x)) + rand(@gibberishTerminator * 3)
+                
+                # Various other tries
+                #x * Math.log(keys.length()) + rand(x)
+                #rand(x) * Math.log(keys.length())
+                #x * rand()
             }
         
+        #puts "WORD: #{word}, DIRECTION: #{direction} --- KEYS: #{keys} PROBS: #{probs.inspect} COUNTS: #{counts.inspect}"
         chosenIndex = probs.each_with_index.max[1]
         
-        if counts[chosenIndex] * probs[chosenIndex] <= @gibberishTerminator
-            # Link is terminated if it's not strong enough
-            return nil
-        else
-            # You're a winner!
+        if probs[chosenIndex] > @gibberishTerminator
             keyOfChoice = keys[chosenIndex]
             
             if direction == 'reverse' && keyOfChoice != nil
@@ -353,6 +363,8 @@ class MarkovChat < BotPlugin
             end
             
             return keyOfChoice
+        else
+            return nil
         end
     rescue => e
         handleError(e)
@@ -409,7 +421,10 @@ class MarkovChat < BotPlugin
             # Check for a link to the previous chain/seed
             appendWord = getProbWord(seed, direction)
             
-            if appendWord != nil && appendWord.split(' ').size > 1
+            if appendWord == nil
+                # Add the previous link if it terminates the chain.
+                sentence.push(seed)
+            elsif appendWord != nil && appendWord.split(' ').size > 1
                 # Add the current chain to the sentence if it's not a bridging chain
                 sentence.push(appendWord)
             end
@@ -439,7 +454,7 @@ class MarkovChat < BotPlugin
             topic = [topic[rand(topic.size)]]
             wittyAttempt = makeSentence(topic[0], topic[0], topic[0])
             
-            if wittyAttempt.length > 0 && wittyAttempt != topic && wittyAttempt != data["message"].upcase
+            if wittyAttempt.length > 1 && wittyAttempt != topic && wittyAttempt != data["message"].upcase
                 # If we have something constructive to add
                 return wittyAttempt
             else
