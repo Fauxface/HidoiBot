@@ -137,20 +137,22 @@ def consoleInput
     # To use this, type '/<$botName.method>' in the console
     if @console != true
         Thread.new do
-            @console = true
-            consoleInput = nil
-
-            while consoleInput == nil
-                consoleInput = STDIN.gets.chomp
+            loop do
+                @console = true
+                consoleInput = nil
+                
+                while consoleInput == nil
+                    consoleInput = STDIN.gets.chomp
+                end
+                
+                if consoleInput[0] == '/'
+                    consoleInput[0] = ''
+                    puts "Evaluating console input: #{consoleInput}"
+                    eval(consoleInput)
+                end
+                
+                consoleInput = nil
             end
-            
-            if consoleInput[0] == '/'
-                consoleInput[0] = ''
-                puts "Evaluating console input: #{consoleInput}"
-                eval(consoleInput)
-            end
-            
-            consoleInput = nil
         end
     end
 end
