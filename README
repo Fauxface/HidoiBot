@@ -57,6 +57,11 @@ To auth:
     Passwords and authlevels are found in 'cfg/authConfig.rb'
     Default passwords: password1, password2, password3 (you should have already changed them)
     
+To access the bot through the console:
+    If you need to do this for whatever reason, type '/<$botName.method>' into the console
+    eg. '/$bot1.sayTo('#hidoi', 'Hi')'
+        '/$bot1.reconnect'
+    
 If you are using a web server:
     Make the root directory 'public'
 
