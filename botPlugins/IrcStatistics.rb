@@ -66,7 +66,7 @@
                 when 'status'
                     return sayf(isTracking)
                 when 'user'
-                    rs = prettyStat(data, 'user', sanitize(arguments(data)[1]), 'user')
+                    rs = prettyStat(data, 'user', sanitize(arguments(data)[1], 'user'))
                     return sayf(rs)
                 when 'channel'
                     rs = prettyStat(data, 'channel', arguments(data)[1])
