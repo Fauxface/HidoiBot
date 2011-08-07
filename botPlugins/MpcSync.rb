@@ -21,6 +21,9 @@ class MpcSync < BotPlugin
         # Is bot cocked on load
         @cocked = false
         
+        # Automatically decocks after x seconds if no "GO!" packet was received
+        @cockTimeout = 300
+        
         # Authorisations
         @reqCockAuth = 3
         @reqNpAuth = 3
@@ -37,6 +40,9 @@ class MpcSync < BotPlugin
         @cannotGetNpMessage = 'Could not obtain MPC information. Is MPC running with WebUI active?'
         @butCannotGetNpMessage = 'However, MPC is not running.'
         @playingMessage = 'Playing.'
+        @errorCockingMessage = 'Error cocking.'
+        
+        @listening = false
         
         # Required plugin stuff
         name = self.class.name
@@ -61,24 +67,31 @@ class MpcSync < BotPlugin
             mode = arguments(data)[0]
         end
         
+        # This bit handles normal hooks
         case mode
         when 'cock'
             # So that we do not call mpcListen again when cock is called multiple times
             requiredLevel = @reqCockAuth
             if authCheck(requiredLevel)
-                mpcListen if @cocked == false
-                @cocked = true
-                @cockedChannel = data["channel"]
-                nowPlayingInfo = nowPlaying
-                
-                if nowPlayingInfo == @cannotGetNpMessage
-                    return sayf(@cockedMessage + ' ' + @butCannotGetNpMessage)
-                else
-                    return sayf(@cockedMessage + ' ' + nowPlayingInfo)
+                if @listening == false
+                    if mpcListen == false
+                        return sayf(@errorCockingMessage)
+                    else
+                        @cocked = true
+                        @cockedChannel = data["channel"]
+                        nowPlayingInfo = nowPlaying
+                        
+                        if nowPlayingInfo == @cannotGetNpMessage
+                            return sayf(@cockedMessage + ' ' + @butCannotGetNpMessage)
+                        else
+                            return sayf(@cockedMessage + ' ' + nowPlayingInfo)
+                        end
+                    end
                 end
             else
                 return sayf(@notAuthorisedMessage)
-            end            
+            end
+            
         when /(decock|uncock)/
             requiredLevel = @reqCockAuth
             if authCheck(requiredLevel)
@@ -91,7 +104,8 @@ class MpcSync < BotPlugin
             else
                 return sayf(@notAuthorisedMessage)
             end
-        when 'cockstatus'
+            
+        when /(cockstatus|status)/
             requiredLevel = @reqCockAuth
             if authCheck(requiredLevel)
                 if @cocked == true
@@ -102,6 +116,7 @@ class MpcSync < BotPlugin
             else
                 return sayf(@notAuthorisedMessage)
             end
+            
         when /(playing|np|nowplaying)/
             requiredLevel = @reqNpAuth
             if authCheck(requiredLevel)
@@ -109,6 +124,7 @@ class MpcSync < BotPlugin
             else
                 return sayf(@notAuthorisedMessage)
             end
+            
         when 'sync'
             requiredLevel = @reqSyncAuth
             if authCheck(requiredLevel)
@@ -118,6 +134,7 @@ class MpcSync < BotPlugin
             else
                 return sayf(@notAuthorisedMessage)
             end
+            
         else
             requiredLevel = @reqNpAuth
             if authCheck(requiredLevel)
@@ -127,39 +144,49 @@ class MpcSync < BotPlugin
     end
     
     def mpcListen()
-        mpcSocket = UDPSocket.open
-        mpcSocket.bind('0.0.0.0', @mpcListenPort)
-        
         # All loops should to be put in a new thread so that the bot will not wait for loop to complete
         # Unless, of course, that is the desired behaviour
         Thread.new do
             begin
-                puts "MpcSync: Listening on port #{@mpcListenPort}"
-                
-                while @cocked == true do
-                    packet, sender = mpcSocket.recvfrom(10)
+                timeout(@cockTimeout) do
+                    @listening = true
+                    mpcSocket = UDPSocket.open
+                    mpcSocket.bind('0.0.0.0', @mpcListenPort)
+                    puts "MpcSync: Listening on port #{@mpcListenPort}"
                     
-                    if packet == 'GO!'
-                        Net::HTTP.post_form(URI.parse(@mpcCommandAddress.to_s), { 'wm_command' => '887' })
-                        @cocked = false
+                    while @cocked == true do
+                        packet, sender = mpcSocket.recvfrom(10)
                         
-                        # $bot1 is a very bad way to do this
-                        $bot1.sayTo(@cockedChannel, @playingMessage)
-                        
-                        # This is the ideal method, but HOW DO I DO THIS?
-                        #return "sayTo(#{@cockedChannel}, 'Playing.')"
-                    else
-                        puts "Wrong packet received."
+                        if packet == 'GO!'
+                            Net::HTTP.post_form(URI.parse(@mpcCommandAddress.to_s), { 'wm_command' => '887' })
+                            @cocked = false
+                            mpcSocket.close
+                            @listening = false
+                            
+                            # $bot1 is a very bad way to do this
+                            $bot1.sayTo(@cockedChannel, @playingMessage)
+                        else
+                            puts "Wrong packet received."
+                        end
                     end
                 end
-            rescue => e
-                handleError(e)
             ensure
                 mpcSocket.close
             end
         end
+        
+        return true
+    rescue Timeout::Error => e
+        puts "MpcSync: Timeout on listen"
+        @cocked = false
+        handleError(e)
+        
+        return false
     rescue => e
         handleError(e)
+        @cocked = false
+        
+        return false
     end
     
     def syncPlayers(connectionInfo)
