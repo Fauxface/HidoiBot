@@ -8,7 +8,7 @@ class MpcSync < BotPlugin
     def initialize
         # Settings
         # Address of MPC's Web UI
-        @mpcPlayerAddress = 'http://127.0.0.1:13579'
+        @mpcPlayerAddress = 'http://192.168.1.42:13579'
         @mpcCommandAddress = @mpcPlayerAddress + '/command.html'
         @mpcPlayingAddress = @mpcPlayerAddress + '/controls.html'
         
@@ -22,7 +22,7 @@ class MpcSync < BotPlugin
         @cocked = false
         
         # Automatically decocks after x seconds if no "GO!" packet was received
-        @cockTimeout = 300
+        @cockTimeout = 3600
         
         # Authorisations
         @reqCockAuth = 3
@@ -87,7 +87,7 @@ class MpcSync < BotPlugin
                             return sayf(@cockedMessage + ' ' + nowPlayingInfo)
                         end
                     end
-                end
+                end                   
             else
                 return sayf(@notAuthorisedMessage)
             end
@@ -144,44 +144,45 @@ class MpcSync < BotPlugin
     end
     
     def mpcListen()
-        # All loops should to be put in a new thread so that the bot will not wait for loop to complete
-        # Unless, of course, that is the desired behaviour
+        # So that the bot will not lock up while listening
         Thread.new do
             begin
                 timeout(@cockTimeout) do
                     @listening = true
-                    mpcSocket = UDPSocket.open
-                    mpcSocket.bind('0.0.0.0', @mpcListenPort)
+                    @mpcSocket = UDPSocket.open
+                    @mpcSocket.bind('0.0.0.0', @mpcListenPort)
                     puts "MpcSync: Listening on port #{@mpcListenPort}"
                     
-                    while @cocked == true do
-                        packet, sender = mpcSocket.recvfrom(10)
+                    while @listening == true do
+                        packet, sender = @mpcSocket.recvfrom(10)
                         
                         if packet == 'GO!'
                             Net::HTTP.post_form(URI.parse(@mpcCommandAddress.to_s), { 'wm_command' => '887' })
-                            @cocked = false
-                            mpcSocket.close
-                            @listening = false
-                            
                             # $bot1 is a very bad way to do this
                             $bot1.sayTo(@cockedChannel, @playingMessage)
+                            @listening = false
+                            @mpcSocket.close
                         else
                             puts "Wrong packet received."
                         end
                     end
                 end
+            rescue Timeout::Error => e
+                puts "MpcSync: Timeout on listen."
+                handleError(e)
+                
+                return false
             ensure
-                mpcSocket.close
+                @cocked = false
+                puts "MpcSync: Uncocked."
+                @listening = false
+                puts "MpcSync: Stopped listening."
+                @mpcSocket.close
+                puts "MpcSync: Socket - #{@mpcSocket}"
             end
         end
         
-        return true
-    rescue Timeout::Error => e
-        puts "MpcSync: Timeout on listen"
-        @cocked = false
-        handleError(e)
-        
-        return false
+        return true # Successfully exited
     rescue => e
         handleError(e)
         @cocked = false
@@ -200,7 +201,7 @@ class MpcSync < BotPlugin
                     info.gsub!(' ','')
                     addr = info.split(':')[0]
                     port = info.split(':')[1].to_i
-                    
+
                     mpcSocket = UDPSocket.new
                     mpcSocket.connect(addr, port)
                     mpcSocket.send "GO!", 0
