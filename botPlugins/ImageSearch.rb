@@ -83,20 +83,24 @@
     def mirrify(term)
         prepend = "#{$botUrl}#{$imageServeDirectoryFromPublic}/"
         postfix = ' :nomirror'
-        
+        puts term.class
+        puts term.inspect
         if term.class == Array
             term.each { |item|
                 item.insert(0, prepend)
                 item.insert(item.size, postfix)
                 item.insert(item.size, "\n")
             }
+            
             return term.join(', ')
         elsif term.class == String
             term.insert(0, prepend)
             term.insert(term.size, postfix)
+            
             return term
+        elsif term == nil
+            return "Image not found."
         end
-        return nil
     rescue => e
         handleError(e)
     end
@@ -182,12 +186,18 @@
         
         # Case where the URLs are the same but images are different
         imageId.each{ |id|
-           x = (sql("SELECT sha256, filetype FROM image WHERE rowid='#{id}'"))[0]
-           filename = "#{x[0]}.#{x[1]}"
-           imageHashes.push(filename)
+            x = (sql("SELECT sha256, filetype FROM image WHERE rowid='#{id}'"))[0]
+            filename = "#{x[0]}.#{x[1]}"
+            if filename != "."
+                imageHashes.push(filename)
+            else
+                return nil
+            end           
         }
         
         return imageHashes
+    rescue
+        return nil
     end
     
     def checkImageTable
