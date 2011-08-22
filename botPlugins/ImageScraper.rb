@@ -48,7 +48,7 @@ class ImageScraper < BotPlugin
     def main(data)
         @givenLevel = data["authLevel"]
         
-        url = urlDetection(data)
+        urls = urlDetection(data)
         mode = detectMode(data)
 
         if data["trigger"] == @hook && data['processEvery'] != true
@@ -73,9 +73,11 @@ class ImageScraper < BotPlugin
             else
                 return @notAuthorisedMessage
             end
-        elsif url != nil && data['processEvery'] == true
+        elsif urls != nil && data['processEvery'] == true
             # Scrape image if url detected
-            imageScrape(url['url'], data) if @s['scraping'] == true
+            urls['urls'].each { |url|
+                imageScrape(url[0], data) if @s['scraping'] == true
+            }
         end
         
         return nil
@@ -91,23 +93,25 @@ class ImageScraper < BotPlugin
     def urlDetection(data)
         # Currently only does image urls, can be expanded further if required
         case data["message"]
-            when /^.*(http(s?)\:)([\/|.|\w|\s|\:|~]|-|%|'|&|=)*\.(?:jpg|gif|png|bmp) :nomirror.*$/
+            when /(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp)) :nomirror/
                 # :nomirror after an image url to not save
-                url = data["message"].slice(/(http(s?)\:)([\/|.|\w|\s|\:|~]|-)*\.(?:jpg|gif|png|bmp)/i)
+                # one :nomirror stops scraping for the line even if there are other links
+                urls = data["message"].scan(/(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp))/i)
                 type = nil
-                puts "ImageScraper: Image detected: #{url}, but not saved as requested."
-            when /^.*(http(s?)\:)([\/|.|\w|\s|\:|~]|-)*\.(?:jpg|gif|png|bmp).*$/
-                # This cannot detect or handle two images
-                url = data["message"].slice(/(http(s?)\:)([\/|.|\w|\s|\:|~]|-)*\.(?:jpg|gif|png|bmp)/i)
+                puts "ImageScraper: Image detected: #{urls}, but not saved as requested."
+            when /(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp))/
+                urls = data["message"].scan(/(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp))/i)
                 type = 'image'
-                puts "ImageScraper: Image detected: #{url}"
+                urls.each { |url|
+                    puts "ImageScraper: Image detected: #{url}"
+                }
             else
                 type = nil
         end
         
         if type != nil
             return {
-                'url' => url,
+                'urls' => urls,
                 'type' => type
             }
         else
