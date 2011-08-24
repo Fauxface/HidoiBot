@@ -1,4 +1,3 @@
-# Go to mpcListen() below for the example on threading
 class MpcSync < BotPlugin
     require 'net/http'
     require 'nokogiri' # gem
@@ -8,7 +7,7 @@ class MpcSync < BotPlugin
     def initialize
         # Settings
         # Address of MPC's Web UI
-        @mpcPlayerAddress = 'http://127.0.0.0:13579'
+        @mpcPlayerAddress = 'http://127.0.0.1:13579'
         @mpcCommandAddress = @mpcPlayerAddress + '/command.html'
         @mpcPlayingAddress = @mpcPlayerAddress + '/controls.html'
         
@@ -21,9 +20,6 @@ class MpcSync < BotPlugin
         # Is bot cocked on load
         @cocked = false
         
-        # Automatically decocks after x seconds if no "GO!" packet was received
-        @cockTimeout = 3600
-        
         # Authorisations
         @reqCockAuth = 3
         @reqNpAuth = 3
@@ -31,8 +27,8 @@ class MpcSync < BotPlugin
         
         # Strings
         @notAuthorisedMessage = 'You are not authorised for this.'
-        @cockedMessage = "Player cocked."
-        @decockedMessage = "Player decocked."
+        @cockedMessage = 'Player cocked.'
+        @decockedMessage = 'Player decocked.'
         @notEvenCockedMessage = "How am I to decock when you don't even have a cock up?"
         @isCockedMessage = 'Long and ready.'
         @isNotCockedMessage = 'Definitely not long and ready.'
@@ -41,12 +37,15 @@ class MpcSync < BotPlugin
         @butCannotGetNpMessage = 'However, MPC is not running.'
         @playingMessage = 'Playing.'
         @errorCockingMessage = 'Error cocking.'
+        @alreadyCockedMessage = 'Already cocked.'
         
         @listening = false
         
         # Required plugin stuff
         name = self.class.name
-        @hook = ["mpc", "cock", "decock"]
+        @cockTrigger = "cock"
+        @decockTrigger = "decock"
+        @hook = ["mpc", @cockTrigger, @decockTrigger]
         processEvery = false
         help = "Usage: #{@hook[0]} (cock|decock|cockstatus|sync <hostname:port>, <hostname:port>), #{@hook[1]}\nFunction: To sync Media Player Classic playback between bots using MPC's WebUI."
         super(name, @hook, processEvery, help)
@@ -55,79 +54,62 @@ class MpcSync < BotPlugin
     def main(data)
         @givenLevel = data["authLevel"]
         
-        # This bit handles alternate hooks
-        if data["trigger"] == @hook[1]
-            # If cock was the trigger, mode is set for COCKAGE
+        # Handle alternate hooks
+        if data["trigger"] == @cockTrigger
             mode = 'cock'
-        elsif data["trigger"] == @hook[2]
-            # If decock was the trigger, mode is set for UNCOCKAGE
+        elsif data["trigger"] == @decockTrigger
             mode = 'decock'
         else
-            # If mpc was the trigger
             mode = arguments(data)[0]
         end
         
         # This bit handles normal hooks
         case mode
         when 'cock'
-            # So that we do not call mpcListen again when cock is called multiple times
-            requiredLevel = @reqCockAuth
-            if authCheck(requiredLevel)
-                if @listening == false
-                    if mpcListen == false
-                        return sayf(@errorCockingMessage)
+            if authCheck(@reqCockAuth)
+                return sayf(@alreadyCockedMessage) if @cocked == true
+            
+                if mpcListen == false
+                    return sayf(@errorCockingMessage)
+                else
+                    @cocked = true
+                    @cockedChannel = data["channel"]
+                    nowPlayingInfo = nowPlaying
+                    
+                    if nowPlayingInfo == @cannotGetNpMessage
+                        return sayf(@cockedMessage + ' ' + @butCannotGetNpMessage)
                     else
-                        @cocked = true
-                        @cockedChannel = data["channel"]
-                        nowPlayingInfo = nowPlaying
-                        
-                        if nowPlayingInfo == @cannotGetNpMessage
-                            return sayf(@cockedMessage + ' ' + @butCannotGetNpMessage)
-                        else
-                            return sayf(@cockedMessage + ' ' + nowPlayingInfo)
-                        end
+                        return sayf(@cockedMessage + ' ' + nowPlayingInfo)
                     end
-                end                   
+                end
             else
                 return sayf(@notAuthorisedMessage)
             end
             
         when /(decock|uncock)/
-            requiredLevel = @reqCockAuth
-            if authCheck(requiredLevel)
-                if @cocked == true
-                    @cocked = false 
-                    return sayf(@decockedMessage)
-                else
-                    return sayf(@notEvenCockedMessage)
-                end
+            if authCheck(@reqCockAuth)
+                @cocked = false
+                return sayf(@decockedMessage)
             else
                 return sayf(@notAuthorisedMessage)
             end
             
         when /(cockstatus|status)/
-            requiredLevel = @reqCockAuth
-            if authCheck(requiredLevel)
-                if @cocked == true
-                    return sayf(@isCockedMessage)
-                else
-                    return sayf(@isNotCockedMessage)
-                end
+            if authCheck(@reqCockAuth)
+                @cocked ? (return sayf(@isCockedMessage)) : (return sayf(@isNotCockedMessage))
             else
                 return sayf(@notAuthorisedMessage)
             end
             
         when /(playing|np|nowplaying)/
-            requiredLevel = @reqNpAuth
-            if authCheck(requiredLevel)
+            if authCheck(@reqNpAuth)
                 return sayf(nowPlaying)
             else
                 return sayf(@notAuthorisedMessage)
             end
             
         when 'sync'
-            requiredLevel = @reqSyncAuth
-            if authCheck(requiredLevel)
+            if authCheck(@reqSyncAuth)
                 connectionInfo = stripTrigger(data).gsub('sync ', '').split(',')
                 syncPlayers(connectionInfo)
                 return sayf(@syncingMessage)
@@ -136,10 +118,7 @@ class MpcSync < BotPlugin
             end
             
         else
-            requiredLevel = @reqNpAuth
-            if authCheck(requiredLevel)
-                return sayf(nowPlaying)
-            end
+            return sayf(nowPlaying) if authCheck(@reqNpAuth)
         end
     end
     
@@ -147,38 +126,27 @@ class MpcSync < BotPlugin
         # So that the bot will not lock up while listening
         Thread.new do
             begin
-                timeout(@cockTimeout) do
-                    @listening = true
-                    @mpcSocket = UDPSocket.open
-                    @mpcSocket.bind('0.0.0.0', @mpcListenPort)
-                    puts "MpcSync: Listening on port #{@mpcListenPort}"
+                @mpcSocket = UDPSocket.open
+                @mpcSocket.bind('0.0.0.0', @mpcListenPort)
+                puts "MpcSync: Listening on port #{@mpcListenPort}"
+                
+                while @cocked == true do
+                    packet, sender = @mpcSocket.recvfrom(10)
                     
-                    while @listening == true do
-                        packet, sender = @mpcSocket.recvfrom(10)
-                        
-                        if packet == 'GO!'
-                            Net::HTTP.post_form(URI.parse(@mpcCommandAddress.to_s), { 'wm_command' => '887' })
-                            # $bot1 is a very bad way to do this
-                            $bot1.sayTo(@cockedChannel, @playingMessage)
-                            @listening = false
-                            @mpcSocket.close
-                        else
-                            puts "Wrong packet received."
-                        end
+                    if packet == 'GO!'
+                        Net::HTTP.post_form(URI.parse(@mpcCommandAddress.to_s), { 'wm_command' => '887' })
+                        # $bot1 is a very bad way to do this
+                        $bot1.sayTo(@cockedChannel, @playingMessage)
+                        @cocked = false
+                    else
+                        puts "Wrong packet received."
                     end
                 end
-            rescue Timeout::Error => e
-                puts "MpcSync: Timeout on listen."
-                handleError(e)
                 
-                return false
-            ensure
-                @cocked = false
-                puts "MpcSync: Uncocked."
-                @listening = false
-                puts "MpcSync: Stopped listening."
                 @mpcSocket.close
-                puts "MpcSync: Socket - #{@mpcSocket}"
+            rescue
+                @cocked = false
+                @mpcSocket.close
             end
         end
         
@@ -186,7 +154,6 @@ class MpcSync < BotPlugin
     rescue => e
         handleError(e)
         @cocked = false
-        
         return false
     end
     
@@ -208,7 +175,7 @@ class MpcSync < BotPlugin
                     mpcSocket.close
                     puts "MpcSync: sent 'GO!' UDP packet: #{addr}:#{port}"
                 }
-                puts "MpcSync: Players synced with a disparity of #{(Time.now - syncStartTime).to_f * 1000}ms" # milliseconds
+                puts "MpcSync: Players synced with a disparity of #{(Time.now - syncStartTime).to_f * 1000}ms"
             rescue => e
                 handleError(e)
             ensure
