@@ -69,7 +69,7 @@ class MpcSync < BotPlugin
             if authCheck(@reqCockAuth)
                 return sayf(@alreadyCockedMessage) if @cocked == true
             
-                if mpcListen == false
+                if mpcListen(data) == false
                     return sayf(@errorCockingMessage)
                 else
                     @cocked = true
@@ -122,7 +122,7 @@ class MpcSync < BotPlugin
         end
     end
     
-    def mpcListen()
+    def mpcListen(data)
         # So that the bot will not lock up while listening
         Thread.new do
             begin
@@ -135,8 +135,7 @@ class MpcSync < BotPlugin
                     
                     if packet == 'GO!'
                         Net::HTTP.post_form(URI.parse(@mpcCommandAddress.to_s), { 'wm_command' => '887' })
-                        # $bot1 is a very bad way to do this
-                        $bot1.sayTo(@cockedChannel, @playingMessage)
+                        getOriginObject(data).sayTo(@cockedChannel, @playingMessage)
                         @cocked = false
                     else
                         puts "Wrong packet received."
