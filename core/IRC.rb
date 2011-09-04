@@ -75,17 +75,15 @@ class IRC
     end
     
     def doPluginMapping(hook, botModuleName, processEvery)
-        if processEvery == true
+        if processEvery == true && @pluginMapping["processEvery"].include?(botModuleName) == false
             # If plugin processes every PRIVMSG received from server
-            if @pluginMapping["processEvery"].include?(botModuleName) == false
-                # If plugin is not processEvery's list
-                # Required for cases where plugin has processEvery == true and multiple hooks
-                @pluginMapping["processEvery"][@pluginMapping["processEvery"].size] = botModuleName
-            end
+            # and if plugin is not already on processEvery's list
+            # This is required for cases where plugin has processEvery == true and multiple hooks
+            @pluginMapping["processEvery"][@pluginMapping["processEvery"].size] = botModuleName
         end
         
         if hook != nil
-            # If plugin is called when trigger is detected
+            # If plugin is called on trigger
             @pluginMapping["#{hook}"] = botModuleName
         end
     end
@@ -124,8 +122,7 @@ class IRC
             puts "Not using SSL."
         elsif @ssl == true
             timeout(@serverConnectTimeout) do
-                @tcp = TCPSocket.new(@hostname, @port)
-                @connection = OpenSSL::SSL::SSLSocket.new(@tcp)
+                @connection = OpenSSL::SSL::SSLSocket.new(TCPSocket.new(@hostname, @port))
                 @connection.connect
             end
             puts "Using SSL."
@@ -166,7 +163,6 @@ class IRC
         
         begin
             @connection.close if @connection != nil
-            @tcp.close if @ssl == true
         rescue => e
             puts "Warning in disconnect: #{e}"
         end
@@ -234,10 +230,8 @@ class IRC
         # This is just here to handle the timeout
         if @shutdown == false
             retry
-        elsif @shutdown == true
-            quit
         else
-            raise "@shutdown is neither true nor false"
+            quit
         end
     rescue => e
         # When it actually knows the socket is bad
@@ -286,44 +280,43 @@ class IRC
             "message" => message,
             "authLevel" => authLevel,
             "time" => Time.now,
-            "serverGroup" => @serverGroup
+            "serverGroup" => @serverGroup,
+            "originId" => self.object_id
         }
-        
-        return parsedData
     end
     
     def handleData(data)
         case data["messageType"]
-            when 'PING'
-                handlePing(data)
-            when 'PONG'
-                handlePong(data)
-            when 'PRIVMSG'
-                # Handle private messages
-                if data["channel"] == @nickname
-                    @replyChannel = data["sender"]
-                else
-                    @replyChannel = data["channel"]
-                end
-                
-                triggerDetection(data)
-                handleProcessEvery(data)
-                ctcpDetection(data)
-            when '001'
-                # When registered
-                registerNickserv if @nickserv == 1
-                joinDefaultChannels
-                startPingChecks
-            when '433'
-                # When nickname is in use
-                @nickname += '_'
-                registerConnection
-            #when '332'
-                # Channel topic
-            #when '333'
-                # Channel topic details
-            #when '353'
-                # Channel users
+        when 'PING'
+            handlePing(data)
+        when 'PONG'
+            handlePong(data)
+        when 'PRIVMSG'
+            # Handle private messages
+            if data["channel"] == @nickname
+                @replyChannel = data["sender"]
+            else
+                @replyChannel = data["channel"]
+            end
+            
+            triggerDetection(data)
+            handleProcessEvery(data)
+            ctcpDetection(data)
+        when '001'
+            # When registered
+            registerNickserv if @nickserv == 1
+            joinDefaultChannels
+            startPingChecks
+        when '433'
+            # When nickname is in use
+            @nickname += '_'
+            registerConnection
+        #when '332'
+            # Channel topic
+        #when '333'
+            # Channel topic details
+        #when '353'
+            # Channel users
         end
     end
     
@@ -346,18 +339,18 @@ class IRC
     
     def ctcpDetection(data)
         case data["message"]
-            when /^[\001]PING(\s.+)?[\001]$/i
-                # CTCP PING
-                puts "> CTCP PING from #{data["sender"]}"
-                send "NOTICE #{data["sender"]} :\001PING#{$1}\001"
-            when /^[\001]VERSION[\001]?$/i
-                # CTCP VERSION
-                puts "> CTCP VERSION from #{data["sender"]}"
-                send "NOTICE #{data["sender"]} :\001VERSION #{BOT_VERSION} - Ruby #{RUBY_VERSION}\001"
-            when /^[\001]TIME[\001]?$/i
-                # CTCP TIME
-                puts "> CTCP TIME from #{data["sender"]}"
-                send "NOTICE #{data["sender"]} :\001TIME #{Time.now}\001"
+        when /^[\001]PING(\s.+)?[\001]$/i
+            # CTCP PING
+            puts "> CTCP PING from #{data["sender"]}"
+            send "NOTICE #{data["sender"]} :\001PING#{$1}\001"
+        when /^[\001]VERSION[\001]?$/i
+            # CTCP VERSION
+            puts "> CTCP VERSION from #{data["sender"]}"
+            send "NOTICE #{data["sender"]} :\001VERSION #{BOT_VERSION} - Ruby #{RUBY_VERSION}\001"
+        when /^[\001]TIME[\001]?$/i
+            # CTCP TIME
+            puts "> CTCP TIME from #{data["sender"]}"
+            send "NOTICE #{data["sender"]} :\001TIME #{Time.now}\001"
         end
     end
     
@@ -366,6 +359,7 @@ class IRC
         message = data["message"]
         
         if /^#{@trigger}/i === message || /^#{@nickname}: /i === message
+            # Trigger via trigger character or nickname
             message.slice!(/^#{@trigger}/i)
             message.slice!(/^#{@nickname}: /i)
             message = message.split(' ')
@@ -398,7 +392,7 @@ class IRC
     end
     
     def checkCoreTriggerMap(data, trigger)
-        # Core triggers
+        # Core triggers, checks which core trigger was called, with authorisation check
         hostname = data["hostname"]
         
         if @coreMapping[trigger] != nil
@@ -414,7 +408,7 @@ class IRC
     end
     
     def checkTriggerMap(trigger)
-        # Plugin-defined triggers
+        # Plugin-defined triggers, authorisation checks are contained within plugins
         if @pluginMapping[trigger] != nil
             return {
                 "moduleName" => @pluginMapping[trigger],
@@ -469,7 +463,7 @@ class IRC
         
         message = message.to_s
         
-        # If a line is too long we split it up to avoid abrupt truncations
+        # If a line ('\n's counted) is too long we split it to avoid abrupt truncations
         message.each_line("\n") { |s|
             if s.length > @maxMessageLength
                 for i in 1..((message.length/@maxMessageLength).floor)
@@ -479,13 +473,14 @@ class IRC
             end
         }
         
+        # Delay sending of successive split messages to avoid flood detection
         message.each_line("\n") { |s|
             @connection.puts "PRIVMSG #{channel} :#{s}"
             sleep(@messageSendDelay)
         }
     end
     
-    # HidoiAuth(tm), ENTERPRISE QUALITY
+    # HidoiAuth(tm), "ENTERPRISE QUALITY"
     # Authentication uses a user's hostname
     def auth(data)
         hostname = data["hostname"]

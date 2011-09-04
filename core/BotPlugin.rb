@@ -10,6 +10,9 @@ class BotPlugin
         end
     end
     
+    # For getOriginObject
+    include ObjectSpace
+    
     def initialize(botModuleName, hook, processEvery, *help)
         # Make a doBotsMapping method
         if hook.class == Array and hook.size > 1
@@ -27,6 +30,15 @@ class BotPlugin
         puts "Bot plugin #{botModuleName} loaded."
     end
     
+    def getOriginObject(data)
+        # Returns origin of data via an object.object_id contained in data["originId"]
+        # So that you can access methods from the origin
+        return ObjectSpace._id2ref(data["originId"])
+    rescue => e
+        handleError(e)
+        return nil
+    end
+    
     def authCheck(requiredLevel)
         # Returns true is you have authorisation, else return false
         if @givenLevel == nil
@@ -37,9 +49,9 @@ class BotPlugin
             return true
         elsif requiredLevel > @givenLevel
             return false
-        else
-            raise "Error in BotPlugin: authRequired: (requiredLevel: #{requiredLevel}, givenLevel: #{givenLevel}"
         end
+    rescue => e
+        return false
     end
     
     def checkAuth(requiredLevel)
@@ -138,7 +150,7 @@ class BotPlugin
     
     def colour(s, textColour, highlightColour=nil)
         colourChar = "\003"
-
+        
         if !isColour?(textColour)
             raise "textColour is not a vaild colour code (0-15) textColour: #{textColour}"
         elsif !isColour?(highlightColour) && highlightColour != nil
@@ -162,7 +174,7 @@ class BotPlugin
     end
     
     def isColour?(colourCode)
-        if /^(0{0,1}[0-9]|[0-1][0-5]?)$/ === "#{colourCode}" # Checks for range 0-15
+        if /^(0?[0-9]|[0-1][0-5]?)$/ === "#{colourCode}" # Checks for range 0-15
             return true
         else
             return false
@@ -178,7 +190,7 @@ class BotPlugin
     end
     
     def reverseColour(s)
-        reverseChar  = "\026"
+        reverseChar = "\026"
         s.insert(0, reverseChar)
         s.insert(s.size, reverseChar)
         
