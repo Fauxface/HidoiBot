@@ -15,14 +15,17 @@ class Maths < BotPlugin
     name = self.class.name
     @hook = ["math", "maths"]
     processEvery = false
-    help = "Usage: #{@hook} <term>\nFunction: Evaluates basic mathematical expressions. Accepts +, -, /, *, ^, ** and % as operators."
+    help = "Usage: #{@hook} <expression>\nFunction: Evaluates basic mathematical expressions. Accepts +, -, /, *, ^, ** and % as operators."
+    @help = help
     super(name, @hook, processEvery, help)
   end
 
   def main(data)
     @givenLevel = data["authLevel"]
-
-    return authCheck(@reqAuthLevel) ? sayf(reversePolishNotation(shuntInput(formatInput(stripWordsFromStart(data["message"], 1))))) : sayf(@noAuthMessage)
+    rs = reversePolishNotation(shuntInput(formatInput(stripWordsFromStart(data["message"], 1))))
+    rs = @help if rs == nil
+    
+    return authCheck(@reqAuthLevel) ? sayf(rs) : sayf(@noAuthMessage)
   rescue => e
     handleError(e)
     return sayf(e)
