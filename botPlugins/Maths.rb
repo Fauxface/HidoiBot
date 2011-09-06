@@ -15,9 +15,8 @@ class Maths < BotPlugin
     name = self.class.name
     @hook = ["math", "maths"]
     processEvery = false
-    help = "Usage: #{@hook} <expression>\nFunction: Evaluates basic mathematical expressions. Accepts +, -, /, *, ^, ** and % as operators."
-    @help = help
-    super(name, @hook, processEvery, help)
+    @help = "Usage: #{@hook} <expression>\nFunction: Evaluates basic mathematical expressions. Accepts +, -, /, *, ^, ** and % as operators."
+    super(name, @hook, processEvery, @help)
   end
 
   def main(data)
