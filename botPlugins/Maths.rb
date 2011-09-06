@@ -115,19 +115,11 @@ class Maths < BotPlugin
   end
 
   def isOperator?(c)
-    if /(\^|\*\*|\*|\/|\+|\-|\%)/ === c
-      return true
-    else
-      return false
-    end
+    return /(\^|\*\*|\*|\/|\+|\-|\%)/ === c ? true : false
   end
 
   def isNumber?(s)
-    if /\d+(.\d+)?/ === s
-      return true
-    else
-      return false
-    end
+    return /\d+(.\d+)?/ === s ? true : false
   end
 
   def formatInput(s)
