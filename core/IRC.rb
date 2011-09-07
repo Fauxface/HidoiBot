@@ -17,10 +17,11 @@ class IRC
     puts 'Starting bot...'
     extend Timer
 
+    # TODO: Ensure $bots array contains IRC objects, so plugins can map for every IRC object.
+
     # So reload doesn't reinitialize bad stuff
     if @connected != true
       timerInitialize
-
       configFile = 'cfg/botConfig.rb'
       load configFile
       botSettings # This implements the shoddy settings loading in configFile
@@ -37,7 +38,7 @@ class IRC
     @pluginMapping = Hash.new
     @pluginMapping["processEvery"] = Array.new
     @pluginHelp = Hash.new
-    @shutdown = false
+    $shutdown = false
   end
 
   def serverSettings(botInfo)
@@ -196,7 +197,7 @@ class IRC
   def quit
     puts "Quitting..."
     disconnect('Quitting')
-    @shutdown = true
+    $shutdown = true
     Process.exit
   end
 
@@ -227,7 +228,7 @@ class IRC
 
   def main
     loop do
-      # This is to force .gets to recheck every second so the bot will know when socket messes up and not just hang
+      # This is to force .gets to recheck every second so the bot will reconnect, and not hang, when socket messes up
       timeout(1) do
         @s = @connection.gets
       end
@@ -238,16 +239,12 @@ class IRC
     end
   rescue Timeout::Error
     # This is just here to handle the timeout
-    if @shutdown == false
-      retry
-    else
-      quit
-    end
+    $shutdown == false ? retry : quit
   rescue => e
     # When it actually knows the socket is bad
     handleError(e)
 
-    if @shutdown == false
+    if $shutdown == false
       reconnect
       retry
     end
@@ -453,7 +450,7 @@ class IRC
   def joinDefaultChannels
     puts "Joining default channels: #{@defaultChannels}"
     @defaultChannels.each { |channel|
-        joinChannel(channel)
+      joinChannel(channel)
     }
   end
 

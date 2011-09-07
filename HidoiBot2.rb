@@ -26,7 +26,8 @@ def taskManager
   loadCoreModules
 
   # Create bot objects
-  $bot1 = IRC.new(@serverDetails)
+  $bots = [IRC.new(@serverDetails)]
+  $bot1 = $bots[0] # Clean this up
 
   #for serverdetails size
   #eval create bots
