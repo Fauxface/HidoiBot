@@ -136,21 +136,21 @@ class Maths < BotPlugin
     # Can be improved
 
     # Split on spaces
-    s.gsub!(/ /, '')
-    s.gsub!('*', ' * ')
-    s.gsub!('^', ' ** ')
-    s.gsub!(' * * ', ' ** ')
-    s.gsub!('+', ' + ')
-    s.gsub!('-', ' - ')
-    s.gsub!(/^ - /, '0 - ') # '-' as a unary operator at beginning of string
-    s.gsub!(' -  - ', ' + ') # Double negation
-    s.gsub!('/', ' / ')
-    s.gsub!('%', ' % ')
-    s.gsub!('>', ' > ')
-    s.gsub!('<', ' < ')
-    s.gsub!(' > =', ' >= ')
-    s.gsub!(' < =', ' <= ')
-    s.gsub!('==', ' == ')
+    #s.gsub!(/ /, '')
+    #s.gsub!('*', ' * ')
+    #s.gsub!('^', ' ** ')
+    #s.gsub!(' * * ', ' ** ')
+    #s.gsub!('+', ' + ')
+    #s.gsub!('-', ' - ')
+    #s.gsub!(/^ - /, '-') # '-' as a unary operator at beginning of string
+    #s.gsub!(' -  - ', ' + ') # Double negation
+    #s.gsub!('/', ' / ')
+    #s.gsub!('%', ' % ')
+    #s.gsub!('>', ' > ')
+    #s.gsub!('<', ' < ')
+    #s.gsub!(' > =', ' >= ')
+    #s.gsub!(' < =', ' <= ')
+    #s.gsub!('==', ' == ')
     s.gsub!('(', ' ( ')
     s.gsub!(')', ' ) ')
     s = s.split(' ')
