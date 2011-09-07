@@ -100,17 +100,13 @@ class MpcSync < BotPlugin
 
     when /(cockstatus|status)/
       if authCheck(@reqCockAuth)
-        @cocked ? (return sayf(@isCockedMessage)) : (return sayf(@isNotCockedMessage))
+        return @cocked ? sayf(@isCockedMessage) : sayf(@isNotCockedMessage)
       else
         return sayf(@notAuthorisedMessage)
       end
 
     when /(playing|np|nowplaying)/
-      if authCheck(@reqNpAuth)
-        return sayf(nowPlaying)
-      else
-        return sayf(@notAuthorisedMessage)
-      end
+      return authCheck(@reqNpAuth) ? sayf(nowPlaying) : sayf(@notAuthorisedMessage)
 
     when 'sync'
       if authCheck(@reqSyncAuth)
@@ -134,7 +130,7 @@ class MpcSync < BotPlugin
         @mpcSocket.bind('0.0.0.0', @mpcListenPort)
         puts "MpcSync: Listening on port #{@mpcListenPort}"
 
-        while @cocked == true do
+        while @cocked == true && $shutdown == false
           packet, sender = @mpcSocket.recvfrom(10)
 
           if packet == 'GO!'
