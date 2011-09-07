@@ -1,7 +1,7 @@
 ﻿# Ng Guoyou
 # Maths.rb
 # This plugin evaluates basic mathematical expressions without the use of eval,
-# through the judacious usage of shunting-yard algorithm and reverse polish notation.
+# through the judicious usage of shunting-yard algorithm and reverse polish notation.
 
 class Maths < BotPlugin
   def initialize
@@ -23,7 +23,7 @@ class Maths < BotPlugin
     @givenLevel = data["authLevel"]
     rs = reversePolishNotation(shuntInput(formatInput(stripWordsFromStart(data["message"], 1))))
     rs = @help if rs == nil
-    
+
     return authCheck(@reqAuthLevel) ? sayf(rs) : sayf(@noAuthMessage)
   rescue => e
     handleError(e)
@@ -39,7 +39,7 @@ class Maths < BotPlugin
       if isNumber?(token)
         outputQueue.push(token)
       elsif isOperator?(token)
-        while isOperator?(stack.last) && 
+        while isOperator?(stack.last) &&
           ((getPrecedence(token)[:a] == 'left' && (getPrecedence(token)[:p] <= getPrecedence(stack.last)[:p])) ||
            (getPrecedence(token)[:a] == 'right' && (getPrecedence(token)[:p] < getPrecedence(stack.last)[:p])))
           outputQueue.push(stack.pop)
@@ -103,12 +103,12 @@ class Maths < BotPlugin
       return {p: 3, a: 'left'}
     when '/' then
       return {p: 3, a: 'left'}
+    when '%' then
+      return {p: 3, a: 'left'}
     when '+' then
       return {p: 2, a: 'left'}
     when '-' then
       return {p: 2, a: 'left'}
-    when '%' then
-      return {p: 3, a: 'left'}
     else
       return {p: 0, a: 'left'}
     end
