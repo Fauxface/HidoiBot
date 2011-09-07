@@ -129,26 +129,28 @@ class Maths < BotPlugin
   end
 
   def isNumber?(s)
-    return /\d+(.\d+)?/ === s ? true : false
+    return /-?\d+(.\d+)?/ === s ? true : false
   end
 
   def formatInput(s)
     # Can be improved
-    s.gsub!(/ /, '')
-    s.gsub!('*', ' * ')
-    s.gsub!('^', ' ** ')
-    s.gsub!(' * * ', ' ** ')
-    s.gsub!('+', ' + ')
-    s.gsub!('-', ' - ')
-    s.gsub!('/', ' / ')
-    s.gsub!('%', ' % ')
+
+    # Split on spaces
+    #s.gsub!(/ /, '')
+    #s.gsub!('*', ' * ')
+    #s.gsub!('^', ' ** ')
+    #s.gsub!(' * * ', ' ** ')
+    #s.gsub!('+', ' + ')
+    #s.gsub!('-', ' - ')
+    #s.gsub!('/', ' / ')
+    #s.gsub!('%', ' % ')
+    #s.gsub!('>', ' > ')
+    #s.gsub!('<', ' < ')
+    #s.gsub!(' > =', ' >= ')
+    #s.gsub!(' < =', ' <= ')
+    #s.gsub!('==', ' == ')
     s.gsub!('(', ' ( ')
     s.gsub!(')', ' ) ')
-    s.gsub!('>', ' > ')
-    s.gsub!('<', ' < ')
-    s.gsub!(' > =', ' >= ')
-    s.gsub!(' < =', ' <= ')
-    s.gsub!('==', ' == ')
     s = s.split(' ')
 
     return s
