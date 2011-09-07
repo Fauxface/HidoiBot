@@ -15,7 +15,7 @@ class Maths < BotPlugin
     name = self.class.name
     @hook = ["math", "maths"]
     processEvery = false
-    @help = "Usage: #{@hook} <expression>\nFunction: Evaluates basic mathematical expressions. Accepts +, -, /, *, ^, ** and % as operators."
+    @help = "Usage: #{@hook} <expression>\nFunction: Evaluates basic mathematical expressions. Accepts +, -, /, *, ^, **, >, <, >=, <=, == and % as operators."
     super(name, @hook, processEvery, @help)
   end
 
@@ -109,13 +109,23 @@ class Maths < BotPlugin
       return {p: 2, a: 'left'}
     when '-' then
       return {p: 2, a: 'left'}
+    when '>' then
+      return {p: 1, a: 'left'}
+    when '<' then
+      return {p: 1, a: 'left'}
+    when '>=' then
+      return {p: 1, a: 'left'}
+    when '<=' then
+      return {p: 1, a: 'left'}
+    when '==' then
+      return {p: 1, a: 'left'}
     else
       return {p: 0, a: 'left'}
     end
   end
 
   def isOperator?(c)
-    return /(\^|\*\*|\*|\/|\+|\-|\%)/ === c ? true : false
+    return /(\^|\*\*|\*|\/|\+|\-|\%|>|<|<=|>=|==)/ === c ? true : false
   end
 
   def isNumber?(s)
@@ -127,13 +137,18 @@ class Maths < BotPlugin
     s.gsub!(/ /, '')
     s.gsub!('*', ' * ')
     s.gsub!('^', ' ** ')
-    s.gsub!(' *  * ', ' ** ')
+    s.gsub!(' * * ', ' ** ')
     s.gsub!('+', ' + ')
     s.gsub!('-', ' - ')
     s.gsub!('/', ' / ')
     s.gsub!('%', ' % ')
     s.gsub!('(', ' ( ')
     s.gsub!(')', ' ) ')
+    s.gsub!('>', ' > ')
+    s.gsub!('<', ' < ')
+    s.gsub!(' > =', ' >= ')
+    s.gsub!(' < =', ' <= ')
+    s.gsub!('==', ' == ')
     s = s.split(' ')
 
     return s
