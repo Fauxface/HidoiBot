@@ -135,7 +135,7 @@ class MpcSync < BotPlugin
 
           if packet == 'GO!'
             Net::HTTP.post_form(URI.parse(@mpcCommandAddress.to_s), { 'wm_command' => '887' })
-            getOriginObject(data).sayTo(@cockedChannel, @playingMessage)
+            data["origin"].sayTo(@cockedChannel, @playingMessage)
             @cocked = false
           else
             puts "Wrong packet received."

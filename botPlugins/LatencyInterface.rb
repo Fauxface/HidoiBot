@@ -1,5 +1,5 @@
-﻿# Ng Guoyou
-# LatencyInterface.rb
+﻿# LatencyInterface.rb
+# Ng Guoyou
 # Provides an interface to display bot latency and refresh it.
 
 class LatencyInterface < BotPlugin
@@ -23,9 +23,17 @@ class LatencyInterface < BotPlugin
     @givenLevel = data["authLevel"]
     mode = arguments(data)[0]
 
-    return mode == 'refresh' && authCheck(@reqLatencyRefreshAuth) ? sayf('Latency refreshed.\'; pingServer') : sayf(@noAuthMessage)
-
-    return authCheck(@reqLatencyAuth) ? sayf("#{@latencyms.to_i}ms") : sayf(@noAuthMessage)
+    case 
+    when mode == "refresh"
+      if authCheck(@reqLatencyRefreshAuth)
+        data["origin"].pingServer
+        return sayf('Latency refreshed.')
+      else
+        return sayf(@noAuthMessage)
+      end
+    else
+      return authCheck(@reqLatencyAuth) ? 'say "#{@latencyms.to_i}ms"' : sayf(@noAuthMessage)
+    end
   rescue => e
     handleError(e)
     return nil
