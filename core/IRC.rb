@@ -288,7 +288,8 @@ class IRC
       "authLevel" => authLevel,
       "time" => Time.now,
       "serverGroup" => @serverGroup,
-      "originId" => self.object_id
+      "originId" => self.object_id,
+      "origin" => self
     }
   end
 
