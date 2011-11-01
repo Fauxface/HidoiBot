@@ -2,6 +2,8 @@
 # Reminder.rb
 # Handles alarm and reminders. These are non-persistent.
 
+require 'time'
+
 class Reminder < BotPlugin
     def initialize
       # Authorisations
@@ -15,14 +17,14 @@ class Reminder < BotPlugin
       name = self.class.name
       @hook = 'remind'
       processEvery = false
-      help = "Usage: #{@hook} (clearall|clearrecurring|clearmine|<userOrChannelToRemind|me> about <event> (in|every) <time>)\nFunction: Sets or clears reminders."
+      help = "Usage: #{@hook} (clearall|clearrecurring|clearmine|<userOrChannelToRemind|me> about <event> (in|every|at) <time>)\nFunction: Sets or clears reminders. Takes in a relative time for 'in' and 'every' and an absolute time for 'at'. (eg. at 2011-11-11 05:00 or November 5th, 2011, 7:48 pm. Uses Ruby's Time.parse for absolute date-times."
       super(name, @hook, processEvery, help)
     end
 
     def main(data)
       @givenLevel = data["authLevel"]
-
       mode = arguments(data)[0]
+
       case mode
       when 'clearall'
         return checkAuth(@requiredLevelForClear) ? clearReminders : sayf(@noAuthMessage)
@@ -39,26 +41,31 @@ class Reminder < BotPlugin
     end
 
     def addReminder(data)
-      extract = data["message"].split(/(remind | about | in | every )/)
+      extract = data["message"].split(/(remind | about | in | every | at )/)
       type = 'reminder'
       user = extract[2]
       message = extract[4]
-      timeRelative = extract[6]
-      parsedTimeRelative = parseRemindTime(timeRelative)
-      parsedTime = Time.at(parsedTimeRelative)
-      isRecurring = data["message"].split(/(#{user}|about| #{message} | #{timeRelative})/)[6]
+      givenTime = extract[6]
+
+      isRecurring = data["message"].split(/(#{user}|about| #{message} | #{givenTime})/)[6]
+
+      # Making time given relative
+      if isRecurring == 'every' || isRecurring == 'in'
+        parsedTime = Time.now.to_i + Time.at(parseRemindTime(givenTime)).to_i
+      elsif isRecurring == 'at'
+        parsedTime = Time.parse(givenTime)
+      end
 
       # Checking for type
       if isRecurring == 'every'
         occurrence = 'recurring'
         occurrenceOffset = parsedTimeRelative
-        parsedTime += Time.now.to_i
       elsif isRecurring == 'in'
         occurrence = 'single'
         occurrenceOffset = 0
-        parsedTime += Time.now.to_i
       elsif isRecurring == 'at'
-        # Not implemented yet
+        occurrence = 'single'
+        occurrenceOffset = 0
       end
 
       # Checking for authorisation
@@ -113,5 +120,4 @@ class Reminder < BotPlugin
     remindTime = timeDigit.to_i
       return remindTime
     end
-
 end
