@@ -27,9 +27,9 @@ class Reminder < BotPlugin
 
       case mode
       when 'clearall'
-        return checkAuth(@requiredLevelForClear) ? clearReminders : sayf(@noAuthMessage)
+        return checkAuth(@requiredLevelForClear) ? clearReminders(data) : sayf(@noAuthMessage)
       when 'clearrecurring'
-        return checkAuth(@requiredLevelForClear) ? clearRecurring : sayf(@noAuthMessage)
+        return checkAuth(@requiredLevelForClear) ? clearRecurring(data) : sayf(@noAuthMessage)
       when 'clearmine'
         return clearMyReminders(data)
       else
@@ -71,53 +71,53 @@ class Reminder < BotPlugin
       # Checking for authorisation
       if user == 'me' || user == data['sender'] && occurrence != 'recurring'
         # No auth required for single event for self
-        user = data['sender']
-        rs = sayf('Reminder added.')
-        return "addEvent('#{user}', '#{type}', '#{parsedTime.to_i}', '#{occurrence}', '#{occurrenceOffset}', '#{message}'); #{rs}"
+        data["origin"].addEvent(data['sender'], type, parsedTime.to_i, occurrence, occurrenceOffset, message)
+        return sayf('Reminder added.')
 
       elsif checkAuth(@requiredLevelForOthers)
         # Auth required for single/recurring event for other people
-        rs = sayf('Reminder added.')
-        return "addEvent('#{user}', '#{type}', '#{parsedTime.to_i}', '#{occurrence}', '#{occurrenceOffset}', '#{message}'); #{rs}"
+        data["origin"].addEvent(user, type, parsedTime.to_i, occurrence, occurrenceOffset, message)
+        return sayf('Reminder added.')
 
       elsif !checkAuth(@requiredLevelForOthers)
         return sayf(@noAuthMessage)
       end
     rescue => e
-      rs = sayf("Error in addReminder: Check syntax.")
       handleError(e)
-      return rs
+      return sayf("Error in addReminder: Check console for details.")
     end
 
-    def clearRecurring
-        rs = sayf('Clearing recurring events.')
-        return "deleteEventOccurrence('recurring'); #{rs}"
+    def clearRecurring(data)
+      data["origin"].deleteEventOccurrence('recurring')
+      return sayf('Clearing recurring events.')
     end
 
-    def clearReminders
-      rs = sayf('Clearing all reminders.')
-      return "deleteEventType('reminder'); #{rs}"
+    def clearReminders(data)
+      data["origin"].deleteEventType('reminder')
+      return sayf('Clearing all reminders.')
     end
 
     def clearMyReminders(data)
-      rs = sayf('Clearing your reminders.')
-      return "deleteReminderUser('#{data["sender"]}'); #{rs}"
+      data["origin"].deleteReminderUser(data["sender"])
+      return sayf('Clearing your reminders.')
     end
 
+    # Consider chronic gem for relative time parsing
     def parseRemindTime(time)
-    timeUnit = time[/[a-z]+$/i]
-    timeDigit = time[/[0-9\.]+/]
+      timeUnit = time[/[a-z]+$/i]
+      timeDigit = time[/[0-9\.]+/]
 
-    if timeUnit.match(/(^s$|seconds?|secs?)/)
-    elsif timeUnit.match(/(m|minutes?|mins?)/)
-      timeDigit = timeDigit.to_f * 60
-    elsif timeUnit.match(/(h|hrs?|hours?)/)
-      timeDigit = timeDigit.to_f * 60 * 60
-    elsif timeUnit.match(/(d|days?)/)
-      timeDigit = timeDigit.to_f * 24 * 60 * 60
-    end
+      if timeUnit.match(/(^s$|seconds?|secs?)/)
+      elsif timeUnit.match(/(m|minutes?|mins?)/)
+        timeDigit = timeDigit.to_f * 60
+      elsif timeUnit.match(/(h|hrs?|hours?)/)
+        timeDigit = timeDigit.to_f * 60 * 60
+      elsif timeUnit.match(/(d|days?)/)
+        timeDigit = timeDigit.to_f * 24 * 60 * 60
+      end
 
     remindTime = timeDigit.to_i
-      return remindTime
-    end
+
+    return remindTime
+  end
 end
