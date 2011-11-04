@@ -20,7 +20,7 @@ module Timer
   end
 
   def checkEvents
-    @events.each{ |event|
+    @events.each { |event|
       begin
         if event["time"] < Time.now
           handleEvent(event) if event != nil
@@ -30,7 +30,6 @@ module Timer
         event["occurrence"] = 'inactive'
       end
     }
-    return nil
   end
 
   def handleEvent(event)
@@ -62,34 +61,43 @@ module Timer
   end
 
   def deleteEventType(eventType)
-    @events.delete_if{ |event|
+    @events.delete_if { |event|
       event["type"] == eventType
     }
   end
 
   def deleteEventOccurrence(eventOccurrence)
-    @events.delete_if{ |event|
+    @events.delete_if { |event|
       event["occurrence"] == eventOccurrence
     }
   end
 
   def deleteReminderUser(user)
-    @events.delete_if{ |event|
+    @events.delete_if { |event|
       event["user"] == user
       event["type"] == 'reminder'
     }
   end
 
   def cleanupEvents
-    @events.delete_if{ |event|
+    @events.delete_if { |event|
       event["occurrence"] == 'inactive'
     }
     @events.compact!
   end
 
   def addEvent(user, type, time, occurrence, occurrenceOffset, *message)
-    if time.class != Time
-      time = Time.at(time.to_i)
+    if !time.is_a?(Time)
+        time = Time.at(time.to_i)
+    end
+
+    # Input checking
+    if occurrence != 'single' && occurrence != 'recurring'
+      raise "Timer: Unsupported reminder type #{occurrence}"
+    end
+
+    if !time.is_a?(Time)
+      raise "Timer: Bad time object - #{time} #{time.class}"
     end
 
     event = {
@@ -111,5 +119,7 @@ module Timer
 
     message[0] != nil ? event["message"] = message[0] : event["message"] = nil
     @events[@events.size] = event
+  rescue => e
+    handleError(e)
   end
 end
