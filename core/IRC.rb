@@ -265,9 +265,10 @@ class IRC
       channel = data[2]
       authLevel, realname = nil
     elsif data[1] == 'PRIVMSG'
-      sender = data[0].slice(/^:.+?!/).gsub(/[:!@]/, '')
-      realname = data[0].slice(/!.*?@/).gsub(/[:!@]/, '')
-      hostname = data[0].slice(/@.*?$/).gsub(/[!@]/, '')
+      data[0].slice(/^:(.+)!(.+)@(.+)/)
+      sender = $1
+      realname = $2
+      hostname = $3
       messageType = 'PRIVMSG'
       channel = data[2]
       authLevel = checkAuth(hostname)
