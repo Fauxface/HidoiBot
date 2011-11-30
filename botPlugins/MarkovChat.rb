@@ -19,7 +19,7 @@ class MarkovChat < BotPlugin
     'chipIn' => true,
     'chipInP' => 0.01,
 
-    # Per side, multiply by two for total. Set to a high number for more natural-looking, long-winded, formations.
+    # Maximum sentence length. The bot will cut generation off once it hits this length
     'maxWords' => 15,
 
     # Saves brain every n learns
@@ -34,7 +34,7 @@ class MarkovChat < BotPlugin
     @chainLength = 2
 
     # Paths
-    @markovSettingsPath = "botPlugins/settings/markovChat" # for brain
+    @markovSettingsPath = "botPlugins/settings/markovChat"
     @trainingFile = "braintrain.txt"
     @brainFile = "brain.json"
     @settingsFile = "markovChat/chatSettings.txt"
@@ -60,6 +60,7 @@ class MarkovChat < BotPlugin
     @chipOffMsg = "Chipping in is now off."
     @chipInPMsg = "Probability of chipping in: "
     @noRespMsg = "Derp."
+    @noAuthMsg = "You are not authorised for this."
 
     # Required plugin stuff
     name = self.class.name
@@ -81,40 +82,49 @@ class MarkovChat < BotPlugin
       mode = detectMode(data)
 
       # Modes
-      if mode == 'learnon' && checkAuth(@reqLearningAuth)
+      case mode
+      when 'learnon'
+        return @noAuthMsg if !checkAuth(@reqLearningAuth)
         @s['learning'] = true
         saveSettings
         return sayf(@learnOnMsg)
 
-      elsif mode == 'learnoff' && checkAuth(@reqLearningAuth)
+      when 'learnoff'
+        return @noAuthMsg if !checkAuth(@reqLearningAuth)
         @s['learning'] = false
         saveSettings
         return sayf(@learnOffMsg)
 
-      elsif mode == 'chipon' && checkAuth(@reqChipAuth)
+      when 'chipon'
+        return @noAuthMsg if !checkAuth(@reqChipAuth)
         @s['chipIn'] = true
         saveSettings
         return sayf(@chipOnMsg)
 
-      elsif mode == 'chipoff' && checkAuth(@reqChipAuth)
+      when 'chipoff'
+        return @noAuthMsg if !checkAuth(@reqChipAuth)
         @s['chipIn'] = false
         saveSettings
         return sayf(@chipOffMsg)
 
-      elsif mode == 'chipprob'  && checkAuth(@reqChipAuth)
+      when 'chipprob'
+        return @noAuthMsg if !checkAuth(@reqChipAuth)
         @s['chipInP'] = arguments(data)[1].to_f
         saveSettings
         return sayf("#{@chipInPMsg}#{@s['chipInP']}")
 
-      elsif mode == 'status' && checkAuth(@reqLearningStatusAuth)
+      when 'status'
+        return @noAuthMsg if !checkAuth(@reqLearningStatusAuth)
         return sayf("Learning: #{@s['learning']}, Chipping In: #{@s['chipIn']} at p #{@s['chipInP'].to_s}\nBrain size: #{@brain.size}")
 
-      elsif mode == 'train' && checkAuth(@reqTrainingStatusAuth)
+      when 'train'
+        return @noAuthMsg if !checkAuth(@reqTrainingStatusAuth)
         rs = trainBrainWithFile
         saveBrain
         return sayf(rs)
 
-      elsif mode == 'about' && checkAuth(@reqChatAuth)
+      when 'about'
+        return @noAuthMsg if !checkAuth(@reqChatAuth)
         rs = makeSentence(data)
         return rs.length > 0 ? sayf(rs) : sayf(@noRespMsg)
       end
@@ -187,7 +197,7 @@ class MarkovChat < BotPlugin
         learnLine(paragraph)
       else
         paragraph.split('. ').each { |line|
-          learnLine(line + '.') # Add the period back
+          learnLine(line)
         }
       end
     }
@@ -293,6 +303,7 @@ class MarkovChat < BotPlugin
     # +sentence+:: +String+ to clean and format.
 
     parsedSentence = sentence.gsub(/("|'| )i( |,|-)/, ' I ') # i -> I
+    parsedSentence = parsedSentence.gsub('"', '')
     parsedSentence = parsedSentence.lstrip.rstrip # Trailing/Leading whitespace
 
     if @capitalise == true
@@ -344,7 +355,7 @@ class MarkovChat < BotPlugin
       end
     end
 
-    return sentence.join(' ')
+    return cleanOutput(sentence.join(' '))
   end
 
   def randChipIn(data)
