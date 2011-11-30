@@ -2,6 +2,7 @@
 # MarkovChat.rb
 # Attempts to implement a markov-chain-based chat algorithm. Handles learning and chatting.
 # A most horrible chat plugin
+# First rewrite
 
 class MarkovChat < BotPlugin
   def initialize
@@ -26,28 +27,22 @@ class MarkovChat < BotPlugin
     }
 
     # Other Settings
-    # Shortens sentences by terminating chains when a link's strength is too weak.
-    # This should improve with increasing brain size; set to a small number if your bot is dim-witted
-    @gibberishTerminator = 0.005
+    # Upcase responses
+    @capitalise = false
 
     # Markov chain length
     @chainLength = 2
 
     # Paths
-    #@configPath = "botPlugins/settings/markovChat"
     @markovSettingsPath = "botPlugins/settings/markovChat" # for brain
     @trainingFile = "braintrain.txt"
-    @brainFile = "brain.rb"
-    @brainRevFile = "brainRev.rb"
-    #@settingsFile = "chatSettings.txt"
+    @brainFile = "brain.json"
     @settingsFile = "markovChat/chatSettings.txt"
 
     # Initialization stuff
     @brain = Hash.new
-    @brainRev = Hash.new
     @wordCount = 0
     @learnBufferCount = 0
-    #trainBrainWithFile
     loadBrain
     loadSettings
 
@@ -112,7 +107,7 @@ class MarkovChat < BotPlugin
         return sayf("#{@chipInPMsg}#{@s['chipInP']}")
 
       elsif mode == 'status' && checkAuth(@reqLearningStatusAuth)
-        return sayf("Learning: #{@s['learning']}, Chipping In: #{@s['chipIn']} at p #{@s['chipInP'].to_s}\nBrain size: Forward - #{@brain.size}, Reverse - #{@brainRev.size}")
+        return sayf("Learning: #{@s['learning']}, Chipping In: #{@s['chipIn']} at p #{@s['chipInP'].to_s}\nBrain size: #{@brain.size}")
 
       elsif mode == 'train' && checkAuth(@reqTrainingStatusAuth)
         rs = trainBrainWithFile
@@ -120,7 +115,7 @@ class MarkovChat < BotPlugin
         return sayf(rs)
 
       elsif mode == 'about' && checkAuth(@reqChatAuth)
-        rs = chatTopic(data)
+        rs = makeSentence(data)
         return rs.length > 0 ? sayf(rs) : sayf(@noRespMsg)
       end
 
@@ -146,56 +141,69 @@ class MarkovChat < BotPlugin
   end
 
   def loadBrain
-    b = JSON.parse(open("#{@markovSettingsPath}/#{@brainFile}", 'a+').read)
-    br = JSON.parse(open("#{@markovSettingsPath}/#{@brainRevFile}", 'a+').read)
+    # Loads the brain.
+    # Brain file to load is a class variable.
 
-    if b.class == Hash
-      @brain = b
-    end
+    File.open("#{@markovSettingsPath}/#{@brainFile}", 'a+') { |file|
+      b = JSON.parse(file.read)
 
-    if br.class == Hash
-      @brainRev = br
-    end
+      if b.class == Hash
+        @brain = b
+      else
+        raise "Invalid brain: #{@markovSettingsPath}/#{@brainFile}. Loading failed."
+      end
+    }
 
-    puts "MarkovChat: Brain loaded. Links: Forward brain - #{@brain.size}, Reverse brain - #{@brainRev.size}."
+    puts "MarkovChat: Brain loaded. Links: Forward brain - #{@brain.size}"
   rescue => e
     handleError(e)
   end
 
   def saveBrain
-    f = File.open("#{@markovSettingsPath}/#{@brainFile}", "w")
-    f.puts @brain.to_json
-    f.close
+    # Saves the brain.
+    # Brain file to save is a class variable.
 
-    g = File.open("#{@markovSettingsPath}/#{@brainRevFile}", "w")
-    g.puts @brainRev.to_json
-    g.close
+    File.open("#{@markovSettingsPath}/#{@brainFile}", "w") { |file|
+      file.puts @brain.to_json
+    }
   rescue => e
     handleError(e)
   end
 
-  def trainBrainWithFile(file = @trainingFile)
-    trainingText = open("#{@configPath}/#{file}", 'r').readlines
+  def trainBrainWithFile(file = @trainingFile, mode = 's')
+    # Trains the chatbot using a file.
+    #
+    # Modes:
+    # *+p+ - treat paragraph as a learning sentence
+    # *+default+ - treat sentence as a learning sentence
+
+    trainingText = open("#{@markovSettingsPath}/#{file}", 'r').readlines
+    oldBrainSize = @brain.size
 
     trainingText.each { |paragraph|
-      # learnLine(paragraph) for longer text - this will create a larger brain file, but will be able to link sentences
-      # learnLine(line) will only do sentences for a smaller file
-      # Switch out the two blocks for different purposes
       paragraph = sanitize(paragraph)
 
-      #learnLine(paragraph)
-      paragraph.split('. ').each{ |line|
-          learnLine(line)
-      }
+      if mode == p
+        learnLine(paragraph)
+      else
+        paragraph.split('. ').each { |line|
+          learnLine(line + '.') # Add the period back
+        }
+      end
     }
 
-    return "MarkovChat: Brain trained using #{@trainingFile}."
+    return "MarkovChat: Brain trained using #{@trainingFile}. Brain size: #{@brain.size}. Added links: #{@brain.size - oldBrainSize}."
   rescue => e
     handleError(e)
     return "MarkovChat: A few errors in reading the training file. If they are UTF-8 errors the brain should have been trained fine using #{@trainingFile}."
   end
 
   def learnLine(line)
+    # Helper method for training and learning
+    #
+    # Params
+    # +line+:: +String+ to clean and add into the brain
+
     line = sanitize(line)
     addChain(line.split(/ /))
   rescue => e
@@ -203,27 +211,61 @@ class MarkovChat < BotPlugin
   end
 
   def addChain(words)
-    chainLength = @chainLength - 1
-    terminatingIndex = words.size - @chainLength
+    # Formats words, an array, into a format suitable for pushBrain
+    #
+    # Params:
+    # +words+:: +Array+ of words to be converted into chains and added into the brain
 
-    for i in 0..words.size - (@chainLength)
-      if i < terminatingIndex
-        pushBrain(words[i..(i+chainLength)].join(' '), words[i + chainLength + 1])
-        words.reverse!
-        pushBrainRev(words[i..(i+chainLength)].join(' '), words[i + chainLength + 1])
-        words.reverse!
+    for i in 0..words.size - @chainLength
+      if words.size - i < @chainLength
+        # If remaining words are shorter than the chain length
+        chain = words[i..words.size]
       else
-        pushBrain(words[i..(i+chainLength)].join(' '), nil)
-        words.reverse!
-        pushBrainRev(words[i + chainLength], nil)
-        words.reverse!
+        chain = words[i..i + @chainLength].join(' ')
       end
+
+      pushBrain(chain, words[i+@chainLength])
+    end
+  end
+
+  def pushBrain(chain, nextWord)
+    # Adds markov chains into the chat brain
+    #
+    # If the chain already exists, we increment the count
+    # The count is used for probalistic determination during sentence generation
+    # Else, we insert it into the brain
+    #
+    # Params:
+    # +chain+:: +String+, the chain to add
+    # +nextWord+:: +String+, the linking word (ie. the next word directly after the chain)
+
+    key = chain.split(' ').first
+
+    if @brain[key] != nil
+      # If word exists
+      if @brain[key][chain] != nil && @brain[key][chain][nextWord] != nil
+          # If both word and next word exist
+          @brain[key][chain][nextWord] += 1
+      else
+          # Else we create the link
+          @brain[key][chain] = Hash.new
+          @brain[key][chain][nextWord] = 1
+      end
+    else
+      # New word, new chain
+      @brain[key] = Hash.new
+      @brain[key][chain] = Hash.new
+      @brain[key][chain][nextWord] = 1
     end
   end
 
   def sanitize(s=words)
-    # Handle invalid encoding
+    # Handle invalid encoding using information from
     # http://po-ru.com/diary/fixing-invalid-utf-8-in-ruby-revisited/
+    #
+    # Params:
+    # +s+:: +String+ to sanitise.
+
     ic = Iconv.new('UTF-8//IGNORE', 'UTF-8')
     s = ic.iconv(s << ' ')[0..-2]
 
@@ -245,220 +287,79 @@ class MarkovChat < BotPlugin
   end
 
   def cleanOutput(sentence)
+    # Formats output. Converts i's to I's, removes excess whitespace and handles capitalisation
+    #
+    # Params:
+    # +sentence+:: +String+ to clean and format.
+
     parsedSentence = sentence.gsub(/("|'| )i( |,|-)/, ' I ') # i -> I
     parsedSentence = parsedSentence.lstrip.rstrip # Trailing/Leading whitespace
-    #parsedSentence = parsedSentence.upcase # Capitalises everything
-    parsedSentence[0] = parsedSentence[0].upcase # Capitalises only the first letter
+
+    if @capitalise == true
+      parsedSentence = parsedSentence.upcase # Capitalises everything
+    else
+      parsedSentence[0] = parsedSentence[0].upcase # Capitalises only the first letter
+    end
 
     return parsedSentence
   end
 
-  # !-BAD CODE ZONE-!
-  def pushBrain(word1, word2)
-    wordStart = word1.split(' ')[0]
+  def makeSentence(data)
+    # Generates sentences. Probability is not factored in yet -- it treats every chain equally right now.
+    # Could use some more refactoring.
+    #
+    # Params:
+    # +data+:: Message hash from +IRC+
 
-    # If the chain already exists, we increment the count
-    # Else, we insert it into the brain
-    if @brain[word1] != nil
-      if @brain[word1][word2] != nil
-          @brain[word1][word2] = @brain[word1][word2] + 1
-      else
-          @brain[word1][word2] = 1
-      end
-    else
-      @brain[word1] = Hash.new
-      @brain[word1][word2] = 1
-    end
-
-    # Chains indexed by first word - done so we can link chains together
-    if @brain[wordStart] != nil
-      if @brain[wordStart][word1] != nil
-        @brain[wordStart][word1] = @brain[wordStart][word1] + 1
-      else
-        @brain[wordStart][word1]
-      end
-    else
-      @brain[wordStart] = Hash.new
-      @brain[wordStart][word1] = 1
-    end
-  end
-
-  # Fix: code reuse
-  def pushBrainRev(word1, word2)
-    wordStart = word1.split(' ')[0]
-
-    if @brainRev[word1] != nil
-      if @brainRev[word1][word2] != nil
-        @brainRev[word1][word2] = @brainRev[word1][word2] + 1
-      else
-        @brainRev[word1][word2] = 1
-      end
-    else
-      @brainRev[word1] = Hash.new
-      @brainRev[word1][word2] = 1
-    end
-
-    if @brainRev[wordStart] != nil
-      if @brainRev[wordStart][word1] != nil
-        @brainRev[wordStart][word1] = @brainRev[wordStart][word1] + 1
-      else
-        @brainRev[wordStart][word1]
-      end
-    else
-      @brainRev[wordStart] = Hash.new
-      @brainRev[wordStart][word1] = 1
-    end
-  end
-
-  def getProbWord(word, direction)
-      keys = Array.new
-      counts = Array.new
-
-      if direction == 'forward'
-        if @brain[word] != nil
-          @brain[word].each{ |pword|
-            keys.push (pword[0]) # Adds available keys (linking chains ie. pword[0]) to array 'keys'
-            counts.push (pword[1]) # Add respective frequencies (ie. pword[1]) to array 'counts'
-          }
-        else
-          # End of chain
-          return nil
-        end
-
-      elsif direction == 'reverse'
-        word = word.split(' ').reverse.join(' ')
-
-        if @brainRev[word] != nil
-          @brainRev[word].each { |pword|
-              keys.push (pword[0])
-              counts.push (pword[1])
-          }
-        else
-          return nil
-        end
-      end
-
-      # Randomise word selection after options are weighed
-      probs = counts.map { |x|
-                rand(Math.log(x)) + rand(@gibberishTerminator * 3)
-
-              # Various other tries
-              #x * Math.log(keys.length()) + rand(x)
-              #rand(x) * Math.log(keys.length())
-              #x * rand()
-              }
-
-      #puts "WORD: #{word}, DIRECTION: #{direction} --- KEYS: #{keys} PROBS: #{probs.inspect} COUNTS: #{counts.inspect}"
-      chosenIndex = probs.each_with_index.max[1]
-
-      if probs[chosenIndex] > @gibberishTerminator
-        keyOfChoice = keys[chosenIndex]
-
-        if direction == 'reverse' && keyOfChoice != nil
-          # The key is stored in reverse in the reverse brain
-          keyOfChoice = keyOfChoice.split(' ').reverse.join(' ')
-        end
-
-        return keyOfChoice
-      else
-        return nil
-      end
-  rescue => e
-      handleError(e)
-  end
-
-  def chatTopic(data)
-    seeds = Array.new
-    seedSentence = stripWordsFromStart(data["message"], 2)
-    seeds.push(seedSentence.split(' '))
-
-    #if seeds[0].size == @chainLength
-    # If we have a phrase that can potentially be a chain itself
-
-    if seeds[0].size > 1
-      # If input is a phrase
-      seeds = seeds[0]
-      seedRev = "#{seeds.first}"
-      seedFor = "#{seeds.last}"
-
-      return makeSentence(seedRev, seedFor, seedSentence)
-    elsif seeds.size == 1
-      # If input is a word
-      return makeSentence(seeds[0][0], seeds[0][0], seeds[0][0])
-    end
-end
-
-  def makeSentence(seedRev, seedFor, seeds='')
-    if seeds.class == Array
-      seeds = seeds.join(' ')
-    end
-
-    reverseString = makeChain(seedRev.downcase, 'reverse')
-    forwardString = makeChain(seedFor.downcase)
-    rawSentence = stripWordsFromEnd(reverseString, 1) + " #{seeds} " + stripWordsFromStart(forwardString, 1)
-
-    return cleanOutput(rawSentence)
-  end
-
-  def makeChain(seed, direction='forward')
-    # Basically this:
-    #   1. chain1           -> chain2    # p = rand(count) = 1, picked
-    #   2. lastWordOfChain2 -> chain3    # p = 3, picked
-    #                       -> chain4    # p = 2
-    #                       -> nil       # p = 2, nil terminates chain
-    #   3. lastWordOfChain3 -> chain4    # p = 1
-    #                       -> chain5    # p = 2, picked
-    #                       -> chain6    # p = 0
-    # and so on until either the limit is hit or the chain is terminal
-
+    terminate = false
     sentence = Array.new
-    appendWord = String.new
+    seeds = Array.new
+    seedSentence = stripWordsFromStart(data["message"], 2) # Can be improved
 
-    if @wordCount < @s['maxWords']
-      # Check for a link to the previous chain/seed
-      appendWord = getProbWord(seed, direction)
+    seedSentence.split(' ').each { |word|
+      seeds.push(word)
+    }
 
-      if appendWord == nil
-        # Add the previous link if it terminates the chain.
-        sentence.push(seed)
-      elsif appendWord != nil && appendWord.split(' ').size > 1
-        # Add the current chain to the sentence if it's not a bridging chain
-        sentence.push(appendWord)
-      end
+    seed = seeds.each { |seed|
+        next if @brain[seed] != nil
+    }[0]
 
-      if appendWord != nil
-        # If there is still a link to another chain
-        # Else, we stop the recurrence
-        @wordCount += 1
-        sentence.push(makeChain(appendWord, direction))
+    # Start sentence off with the seed, since we're going to drop the first words later
+    sentence.push(seed)
+
+    while terminate == false && @brain[seed] != nil
+      # Probablity goes here, replace sample
+      word = (@brain[seed].keys).sample
+
+      if word == nil || sentence.size > @s['maxWords']
+        terminate = true
+      else
+        seed = word.split(' ').last # New seed
+
+        if word.split(' ').size > 1
+          word = word.split(' ').drop(1).join(' ') # Remove first word
+        end
+
+        sentence.push(word)
       end
     end
 
-    if direction == 'reverse'
-      sentence = sentence.reverse
-    end
-
-    @wordCount = 0
-
-    return sentence.join(' ').rstrip.lstrip
-  rescue => e
-    handleError(e)
+    return sentence.join(' ')
   end
 
   def randChipIn(data)
-    if rand < @s['chipInP']
-      topic = data["message"].split(' ')
-      topic = [topic[rand(topic.size)]]
-      wittyAttempt = makeSentence(topic[0], topic[0], topic[0])
+    # Handles quipping.
+    #
+    # Params:
+    # +data+:: For passing to +makeSentence+ if needed.
 
-      if wittyAttempt.length > 1 && wittyAttempt != topic && wittyAttempt != data["message"].upcase
-        # If we have something constructive to add
-        return wittyAttempt
-      else
-        return nil
-      end
-    else
-      return nil
+    if rand < @s['chipInP']
+      wittyAttempt = makeSentence(data)
+
+      # If we have something constructive to add
+      return wittyAttempt if wittyAttempt.length > 1 && wittyAttempt != data["message"].upcase
     end
+
+    return nil
   end
 end
