@@ -34,6 +34,7 @@ class IRC
   end
 
   def botVariables
+    # Initialises variables related to bot operation.
     @triggerMap = Hash.new
     @pluginMapping = Hash.new
     @pluginMapping["processEvery"] = Array.new
@@ -42,26 +43,24 @@ class IRC
   end
 
   def serverSettings(botInfo)
-    serverDetails(botInfo["serverGroup"], botInfo["hostname"], botInfo["port"], botInfo["ssl"], botInfo["defaultChannels"])
-    botDetails(botInfo["nickname"], botInfo["nickserv"], botInfo["nickservpw"])
-  end
+    # Initialises variables related to server connection.
+    #
+    # Params:
+    # +botInfo+:: A +Hash+ defined in cfg/serverInfo.rb containing bot and server information.
 
-  def serverDetails(serverGroup, hostname, port, ssl, defaultChannels)
-    @serverGroup = serverGroup
-    @hostname = hostname
-    @port = port
-    @ssl = ssl
-    @defaultChannels = defaultChannels
-  end
-
-  def botDetails(nickname, nickserv, nickservPassword)
-    @defaultNickname = nickname
-    @nickname = nickname
-    @nickserv = nickserv
-    @nickservPassword = nickservPassword
+    @serverGroup = botInfo["serverGroup"]
+    @hostname = botInfo["hostname"]
+    @port = botInfo["port"]
+    @ssl = botInfo["ssl"]
+    @defaultChannels = botInfo["defaultChannels"]
+    @defaultNickname = botInfo["nickname"]
+    @nickname = botInfo["nickname"]
+    @nickserv = botInfo["nickserv"]
+    @nickservPassword = botInfo["nickservpw"]
   end
 
   def getBotInformation
+    # Returns a hash with bot information.
     return {
       "hostname" => @hostname,
       "port" => @port,
@@ -86,6 +85,13 @@ class IRC
   end
 
   def doPluginMapping(hook, botModuleName, processEvery)
+    # Maps plugin hooks to plugins. Should be called by BotPlugin initialize methods.
+    #
+    # Params:
+    # +hook+:: The trigger, essentially. Will be used by detectTrigger.
+    # +botModuleName+:: The name of the related botModule.
+    # +processEvery+:: A boolean of whether every PRIVMSG should be passed along to the plugin.
+
     if processEvery == true && @pluginMapping["processEvery"].include?(botModuleName) == false
       # If plugin processes every PRIVMSG received from server
       # and if plugin is not already on processEvery's list
@@ -100,10 +106,21 @@ class IRC
   end
 
   def doPluginHelp(hook, help)
+    # Adds plugin help information to help command. Should be called by BotPlugin initialize methods.
+    #
+    # Params:
+    # +hook+:: Help string identifier. (~help <hook>)
+    # +help+:: Help string for the hook.
+
     @pluginHelp["#{hook}"] = help
   end
 
   def getPluginHelp(m)
+    # Retrieve plugin help command
+    #
+    # Params:
+    # +m+:: A +Message+, probably passed along from checkCoreTriggerMap
+
     message = m.message
     message.gsub!(/^help ?/, '')
     hook = message.split(' ')[0]
@@ -121,11 +138,13 @@ class IRC
   end
 
   def getLoadedPlugins
+    # Retrieve statistics on loaded and failed plugins
     say "Loaded plugins: #{$loadedPlugins.join(', ')}."
     say "Failed plugins: #{$failedPlugins.join(', ')}." if $failedPlugins.size > 0
   end
 
   def connect
+    # Connects to a server. Details of the server are variables in serverDetails and can be found in /cfg
     if @ssl == false
       timeout(@serverConnectTimeout) do
         @connection = TCPSocket.new(@hostname, @port)
@@ -153,11 +172,15 @@ class IRC
   end
 
   def registerConnection
+    # Registers a successful connection to an IRC server.
+    # See RFC 1459 for details.
     send "NICK #{@nickname}"
     send "USER HidoiBot 0 * :Watashi wa kawaii desu."
   end
 
   def registerNickserv
+    # Registers with NickServ if requested. The server has to support this for it to work.
+    # Not in RFC 1459.
     send "NICKSERV IDENTIFY #{@nickservpw[0]}"
     send "NICKSERV RECOVER #{@nickname} #{@nickservpw[0]}"
     send "NICKSERV RELEASE #{@nickname} #{@nickservpw[0]}"
@@ -166,6 +189,11 @@ class IRC
   end
 
   def disconnect(*quitMessage)
+    # Disconnects from the server, but does not stop running.
+    #
+    # Params:
+    # +quitMessage+:: Optional quit message to send. Will be seen as "HidoiBot has quit (quitMessage)".
+
     begin
       @connection.puts "QUIT #{quitMessage[0]}" if quitMessage[0] != nil
     rescue
@@ -183,18 +211,21 @@ class IRC
   end
 
   def reconnect
+    # Reconnects to the server.
     puts "Reconnecting..."
     disconnect('Reconnecting')
     connect
   end
 
   def restart
+    # Restarts the bot.
     puts "Restarting..."
     disconnect('Restarting')
     exec("ruby HidoiBot2.rb")
   end
 
   def quit
+    # Shuts down the bot.
     puts "Quitting..."
     disconnect('Quitting')
     $shutdown = true
@@ -202,6 +233,7 @@ class IRC
   end
 
   def reload
+    # Reload plugins and core modules.
     @pluginMapping["processEvery"] = Array.new
     super
     initialize
@@ -213,20 +245,24 @@ class IRC
   end
 
   def pingServer
+    # Pings the server.
     send "PING #{Time.now.to_f}"
     addEvent(@hostname, 'pingTimeout', Time.now + @pingTimeout, 'single', 0)
   end
 
   def startPingChecks
+    # Sets up a recurring +Event+ for ping checks.
     addEvent(@hostname, 'pingCheck', Time.now, 'recurring', @pingInterval)
   end
 
   def stopPingChecks
+    # Stops ping checks. Used when disconnecting.
     deleteEventType('pingCheck')
     deleteEventType('pingTimeout')
   end
 
   def main
+    # Main loop.
     loop do
       # This is to force .gets to recheck every second so the bot will reconnect, and not hang, when socket messes up
       timeout(1) do
@@ -251,6 +287,11 @@ class IRC
   end
 
   def parseData(data)
+    # Processes raw lines from the server, and returns a formatted +Message+.
+    #
+    # Params:
+    # +data+: A raw line received from the server.
+
     rawData = data
     message = data.split(' :')
     message = message[message.size - 1].chomp
@@ -297,6 +338,11 @@ class IRC
   end
 
   def handleData(m)
+    # Handles +Message+ logic.
+    #
+    # Params:
+    # +m+:: A +Message+.
+
     case m.messageType
     when 'PING'
       handlePing(m)
@@ -332,16 +378,31 @@ class IRC
   end
 
   def handlePing(m)
+    # Handles a +Message+ of type PING. PINGs are received from the server.
+    #
+    # Params:
+    # +m+:: A +Message+ of type PING.
+
     send "PONG #{m.sender} #{m.message}"
   end
 
   def handlePong(m)
+    # Handles a +Message+ of type PONG. PONGs are received in response to our PING
+    #
+    # Params:
+    # +m+:: A +Message+ of type PONG.
+
     deleteEventType('pingTimeout')
     @latencyms = (Time.now.to_f - m.message.to_f) * 1000
   end
 
   def handleProcessEvery(m)
-    # This sends data to every plugin that requested to process every PRIVMSG received
+    # This sends data to every plugin that requested to process every PRIVMSG received.
+    # ProcessEvery will only pass along PRIVMSGs.
+    #
+    # Params:
+    # +m+:: A +Message+ of type PRIVMSG.
+
     @pluginMapping["processEvery"].each{ |pluginName|
       m.processEvery = true
       runPlugin(pluginName, m)
@@ -349,23 +410,30 @@ class IRC
   end
 
   def ctcpDetection(m)
-      case m.message
-      when /^[\001]PING(\s.+)?[\001]$/i
-        # CTCP PING
-        puts "> CTCP PING from #{m.sender}"
-        send "NOTICE #{m.sender} :\001PING#{$1}\001"
-      when /^[\001]VERSION[\001]?$/i
-        # CTCP VERSION
-        puts "> CTCP VERSION from #{m.sender}"
-        send "NOTICE #{m.sender} :\001VERSION #{BOT_VERSION} - Ruby #{RUBY_VERSION}\001"
-      when /^[\001]TIME[\001]?$/i
-        # CTCP TIME
-        puts "> CTCP TIME from #{m.sender}"
-        send "NOTICE #{m.sender} :\001TIME #{Time.now}\001"
-      end
+    # Checks if a +Message+ is a CTCP message, and gives appropriate replies to them.
+    #
+    # Params:
+    # +m+:: +Message+ to check for CTCP messages.
+
+    case m.message
+    when /^[\001]PING(\s.+)?[\001]$/i
+      # CTCP PING
+      puts "> CTCP PING from #{m.sender}"
+      send "NOTICE #{m.sender} :\001PING#{$1}\001"
+    when /^[\001]VERSION[\001]?$/i
+      # CTCP VERSION
+      puts "> CTCP VERSION from #{m.sender}"
+      send "NOTICE #{m.sender} :\001VERSION #{BOT_VERSION} - Ruby #{RUBY_VERSION}\001"
+    when /^[\001]TIME[\001]?$/i
+      # CTCP TIME
+      puts "> CTCP TIME from #{m.sender}"
+      send "NOTICE #{m.sender} :\001TIME #{Time.now}\001"
+    end
   end
 
   def triggerDetection(m)
+    # Checks if a +Message+ has a trigger, and runs the corresponding botPlugin if there is one.
+    # Authorisation checks are handled in plugins themselves
     # Triggers are case-insensitive (/./i)
     message = m.message
 
@@ -404,6 +472,11 @@ class IRC
 
   def checkCoreTriggerMap(m, trigger)
     # Core triggers, checks which core trigger was called, with authorisation check
+    #
+    # Params:
+    # +m+:: +Message+ passed along, used to obtain the hostname.
+    # +trigger+:: Trigger to be checked to see if it is in the core trigger mapping.
+
     hostname = m.hostname
 
     if @coreMapping[trigger] != nil
@@ -420,6 +493,10 @@ class IRC
 
   def checkTriggerMap(trigger)
     # Plugin-defined triggers, authorisation checks are contained within plugins
+    #
+    # Params:
+    # +trigger+:: +String+ to be checked against the current plugin mapping.
+
     if @pluginMapping[trigger] != nil
       return {
         "moduleName" => @pluginMapping[trigger],
@@ -431,6 +508,12 @@ class IRC
   end
 
   def runPlugin(plugin, m)
+    # Runs plugin and passes +Message+ m to it.
+    #
+    # Params:
+    # +plugin+:: The plugin to run.
+    # +m+:: A +Message+.
+
     if m != nil
       runs = "$#{plugin}.main(m)"
       returnData = eval(runs)
@@ -445,32 +528,63 @@ class IRC
   end
 
   def joinChannel(channel)
+    # Joins a channel.
+    #
+    # Params:
+    # +channel+:: Channel to join. Include the hex, ie. joinChannel("#channel")
+
     send "JOIN #{channel}"
   end
 
   def partChannel(channel)
+    # Joins a channel.
+    #
+    # Params:
+    # +channel+:: Channel to part. Include the hex, ie. joinChannel("#channel")
+
     send "PART #{channel}"
   end
 
   def joinDefaultChannels
+    # Joins default channels as described in cfg
     puts "Joining default channels: #{@defaultChannels}"
     @defaultChannels.each { |channel|
       joinChannel(channel)
     }
   end
 
-  def send(m)
-    puts "SEND: #{m}"
-    @connection.puts m.to_s
+  def send(message)
+    # Sends msg to the IRC server, raw.
+    #
+    # Params:
+    # +msg+:: Will be converted to a string.
+
+    puts "SEND: #{message}"
+    @connection.puts message.to_s
   rescue => e
     handleError(e)
   end
 
   def say(message)
+    # Replies to the last message received. Can reply to a user or channel.
+    # This is a method for convenience.
+    #
+    # Params:
+    # +message+:: Line to reply.
+
     sayTo(@replyChannel, message)
   end
 
   def sayTo(channel, message)
+    # Sends a PRIVMSG to +channel+, and, using a ghetto technique, breaks up long lines
+    # into several sends to attempt to stay below the 512 character limit.
+    # Existing +\n+s will be taken to be a line break and a separate send.
+    # See RFC 1459 S4.4.1  for details.
+    #
+    # Params:
+    # +channel+:: Channel or person to send the PRIVMSG.
+    # +message+:: What to send to the person. Will be converted to a string.
+
     puts "SAY TO #{channel}: #{message}"
     message = message.to_s
 
@@ -488,7 +602,15 @@ class IRC
 
   # HidoiAuth(tm), "ENTERPRISE QUALITY"
   # Authentication uses a user's hostname
+  # This is extremely bad security.
   def auth(m)
+    # Checks and authenticates a hostname if a correct password is given.
+    # Will reply indicating success or failure.
+    # One password per authentication level.
+    #
+    # Params:
+    # +m+:: A +Message+ to authenticate.
+
     hostname = m.hostname
     password = m.message.gsub(/^auth /, '')
 
@@ -502,6 +624,11 @@ class IRC
   end
 
   def deauth(m)
+    # Deauthenticates a hostname. Will reply indicating success or inability to deauthenticate.
+    #
+    # Params:
+    # +m+:: Message from a user to deauth.
+
     if @authUsers[m.hostname] > 0
       @authUsers.delete(m.hostname)
       say "Deauthenticated."
@@ -511,6 +638,11 @@ class IRC
   end
 
   def checkAuth(hostname)
+    # Returns the current auth level of a hostname.
+    #
+    # Params:
+    # +hostname+:: A hostname to check.
+
     if @authUsers[hostname]
       return @authUsers[hostname]
     else
@@ -520,12 +652,18 @@ class IRC
   end
 
   def doDefaultAuth
+    # Does auths described in cfg.
     load 'cfg/authConfig.rb'
     passwordList
     @authUsers = Hash.new
   end
 
   def handleError(error)
+    # Handles an +Exception+ by printing the message and its backtrace for debugging.
+    #
+    # Params:
+    # +error+:: An +Exception+.
+
     puts error.message
     puts error.backtrace.join("\n")
   end
