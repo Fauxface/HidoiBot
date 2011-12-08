@@ -49,11 +49,11 @@ class ImageSearch < BotPlugin
     when 'hash'
       m.reply(recallUrlFromHash(term).join(', ')) if m.authR(@reqHashAuth)
     when 'url'
-      m.reply(mirrify(recallHashFromUrl(term))) if m.authR(@notAuthorisedMessage)
+      m.reply(mirrify(recallHashFromUrl(term))) if m.authR(@reqUrlAuth)
     when 'info'
-      m.reply(getHashDetails(term)) if m.authR(@notAuthorisedMessage)
+      m.reply(getHashDetails(term)) if m.authR(@reqInfoAuth)
     when 'rndimg'
-      m.reply(mirrify(randomImage)) if m.authR(@notAuthorisedMessage)
+      m.reply(mirrify(randomImage)) if m.authR(@reqRndImgAuth)
     else
       m.reply(@noModeMessage)
     end
