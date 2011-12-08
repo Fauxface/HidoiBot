@@ -45,6 +45,9 @@ class BotPlugin
     # !-Bad-! Use m.origin.methodToCall instead to avoid eval errors.
     # Use this if you are getting syntax errors in IRC from breaking eval
     # Use escapeSyntaxHard for more hardcore escapism action
+    #
+    # Params:
+    # +s+:: String to escape.
 
     if s.class == String
       s = s.gsub(/[\\]/, '\\\\\\')
@@ -59,6 +62,9 @@ class BotPlugin
     # Escapes s harder for SQL/eval.
     # !-Bad-! Use prepared statements instead for SQL
     # http://weblog.jamisbuck.org/2004/12/19/sqlite3-bindings-for-ruby
+    #
+    # Params:
+    # +s+:: String to escape.
 
     s = s.gsub(/['"]/, '`')
   end
@@ -67,6 +73,9 @@ class BotPlugin
     # Formats a string to be used in IRC.runPlugin's eval().
     # Preferably use `m.reply` in plugins
     # Formats a string in prepration for returns to the main bot
+    #
+    # Params:
+    # +s+:: Object to format. Will be converted into a String.
 
     return "say '#{s}'"
   end
@@ -79,26 +88,44 @@ class BotPlugin
   #######################
 
   def bold(s)
-    # Prepend and append IRC control code for bold to s
+    # Prepend and append IRC control code for bold to +s+.
+    #
+    # Params:
+    # +s+:: String to format.
+
     boldChar = "\002"
     return prependAppend(s, boldChar)
   end
 
   def italic(s)
-    # Prepend and append IRC control code for italic to s
+    # Prepend and append IRC control code for italic to +s+.
     # Or oblique, whichever floats your boat
+    #
+    # Params:
+    # +s+:: String to format.
+
     italicChar = "\011"
     return prependAppend(s, italicChar)
   end
 
   def underline(s)
-    # Prepend and append IRC control code for underline to s
+    # Prepend and append IRC control code for underline to +s+.
+    #
+    # Params:
+    # +s+:: String to format.
+
     underlineChar = "\037"
     return prependAppend(s, underlineChar)
   end
 
   def colour(s, textColour, highlightColour=nil)
-    # Prepend and append IRC control code for colour and highlight to s
+    # Prepend and append IRC control code for colour and highlight to +s+.
+    #
+    # Params:
+    # +s+:: String to format.
+    # +textColour+:: An IRC colour code. Will be checked for validity.
+    # +highlightColour+:: An IRC colour code. Will be checked for validity. Defaults to no highlight.
+
     colourChar = "\003"
 
     if !isColour?(textColour)
@@ -122,11 +149,19 @@ class BotPlugin
 
   def isColour?(colourCode)
     # Checks colourCode for range 0-15
+    #
+    # Params:
+    # +colourCode+:: Colour code to check.
+
     /^(0?[0-9]|[0-1][0-5]?)$/ === "#{colourCode}" ? true : false
   end
 
   def reverseColour(s)
-    # Prepend and append IRC control code for reverse colour to s
+    # Prepend and append IRC control code for reverse colour to +s+.
+    #
+    # Params:
+    # +s+:: String to format.
+
     reverseChar = "\026"
     return prependAppend(s, reverseChar)
   end
@@ -143,7 +178,12 @@ class BotPlugin
   end
 
   def prependAppend(s, word)
-    # Helper method for insertion of IRC control codes
+    # Helper method for insertion of IRC control codes. Adds +word+ to the beginning and end of +s+.
+    #
+    # Params:
+    # +s+:: String to format.
+    # +word+:: String to add to beginning and end of s.
+
     s.insert(0, word)
     s.insert(s.size, word)
 
@@ -164,6 +204,10 @@ class BotPlugin
   def humaniseSeconds(second)
     # Converts seconds in integer to this format, with proper grammar:
     # x years, y months, z, weeks, a days, b hours, c minutes, d seconds
+    #
+    # Params:
+    # +second+:: An integer value of seconds to be "humanised".
+
     secondsInMinute = 60
     secondsInHour = 60 * 60
     secondsInDay = 60 * 60 * 24
