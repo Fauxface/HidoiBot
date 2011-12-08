@@ -10,9 +10,11 @@ HidoiBot v2 is a near-complete rewrite of HidoiBot v1, done in early 2011, with 
 
 There are several notable inadequacies in v2 -- I had to 'hack' in solutions and implement 'half-past-six' code or HidoiBot v2 would never have been completed. Essentially, corners were cut. So many, that it's beginning to look like a circle.
 
+Additional major refactoring work was done in December 2011.
+
 Installation
 ------------
-HidoiBot is tested to run on Linux and Windows, with Ruby 1.9.2 installed. Older versions of Ruby might work, but are untested.
+HidoiBot is tested on Ubuntu 10.04, with Ruby 1.9.2 installed. Older versions of Ruby might work, but are untested. It might work on Windows, and there shouldn't be any huge issues with that.
 
 Pull the source and install the following stuff:
 
@@ -46,8 +48,8 @@ Quick Start
 Configuring Default Plugins
 ---------------------------
 1. MpcSync - Check if MPC's address, port and the port on which you are listening for 'GO!' packets are correct.
-2. WolframAlpha - If you wish to use your own W|A API key, change it here. W|A imposes a monthly limit on API calls.
-3. RottenTomatoes - Same deal here as WolframAlpha. Insert your own API key if you so desire.
+2. WolframAlpha - Insert your own W|A API key here. W|A imposes a monthly limit on API calls.
+3. RottenTomatoes - Same deal here. Insert your own API key if you so desire.
 4. ImageScraper - If you wish to change the directory scraped images are saved in, change it here.
 5. MarkovChat - "settings/markovChat/braintrain.txt" is the training file for Markov chat. Use ~chat train to train HidoiBot.
 
@@ -80,15 +82,16 @@ Usage
 > `/$bot1.sayTo('#hidoi', 'Hi')` <br>
 > `/$bot1.reconnect`
     
-If you are using a web server:
-    Make the root directory 'public'
+If you are using a web server: make the root directory 'public'
 
-Creating Plugins
-----------------
+Plugins
+-------
+### Creating plugins:
 HidoiBot has a plugin system which can be used to include additional functionality.
 
 > See `botPlugins/Ping.rb` for details. <br>
 > See `botPlugins/inactive/Template.rb` for a plugin template.
+Commonly used methods and accessors will be in `core/BotPlugin.rb` and `core/Message.rb`.
 
 ### Notable default plugins:
 
@@ -109,6 +112,6 @@ This is currently horribly written.
 For most plugins, dump the `plugin.rb` file in `botPlugins` and it'll work fine. Rename `plugin.rb` to whatever the plugin class name is.
     
 ### To change plugin authorisation level:
-Open the file with the plugin you wish to modify the required authorisation level for and search for instances of `requiredLevel` or `authCheck`. They should be in the `initialize` method of the plugins.
+Open the file with the plugin you wish to modify the required authorisation level for and search for the authorisation variables. They should be in the `initialize` method of the plugins. Failing that, try a search for `.auth` or `.authR`.
 
 This is also horribly written.
