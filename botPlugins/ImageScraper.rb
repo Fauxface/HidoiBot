@@ -32,7 +32,6 @@ class ImageScraper < BotPlugin
     @scrapeOffMessage = 'Image scraping is now off.'
     @scrapingIsOnMessage = 'Image scraping is currently on.'
     @scrapingIsOffMessage = 'Image scraping is currently off.'
-    @notAuthorisedMessage = 'You are not authorised for this.'
 
     # Authorisations
     # Auth level required to change scrape settings
@@ -49,38 +48,32 @@ class ImageScraper < BotPlugin
     super(name, @hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
+  def main(m)
+    urls = urlDetection(m)
+    mode = m.mode
 
-    urls = urlDetection(data)
-    mode = detectMode(data)
-
-    if data["trigger"] == @hook && data['processEvery'] != true
+    if m.trigger == @hook && m.processEvery != true
       # If called using hook
       requiredLevel = @reqAuthLevel
 
-      if checkAuth(requiredLevel)
-        mode = arguments(data)[0]
-
-        case mode
+      if m.authR(requiredLevel)
+        case m.mode
         when 'on'
           @s['scraping'] = true
           saveSettings
-          return sayf(@scrapeOnMessage)
+          m.reply(@scrapeOnMessage)
         when 'off'
           @s['scraping'] = false
           saveSettings
-          return sayf(@scrapeOffMessage)
+          m.reply(@scrapeOffMessage)
         when 'status'
-          return sayf(getScrapeStatus)
+          m.reply(getScrapeStatus)
         end
-      else
-        return @notAuthorisedMessage
       end
-    elsif urls != nil && data['processEvery'] == true
-      # Scrape image if url detected
+    elsif urls != nil && m.processEvery == true
+      # Scrape images if url detected
       urls['urls'].each { |url|
-        imageScrape(url[0], data) if @s['scraping'] == true
+        imageScrape(url[0], m) if @s['scraping'] == true
       }
     end
 
@@ -94,17 +87,16 @@ class ImageScraper < BotPlugin
     return "Image scraping: #{@s['scraping']}, Last few images page generation: #{@s['doGenerateLast']}"
   end
 
-  def urlDetection(data)
-    # Currently only does image urls, can be expanded further if required
-    case data["message"]
+  def urlDetection(m)
+    # Currently only does image urls
+    case m.message
     when /(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp)) :nomirror/
       # :nomirror after an image url to not save
       # one :nomirror stops scraping for the line even if there are other links
-      urls = data["message"].scan(/(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp))/i)
       type = nil
-      puts "ImageScraper: Image detected: #{urls}, but not saved as requested."
+      puts "ImageScraper: Image detected, but not saved as requested."
     when /(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp))/
-      urls = data["message"].scan(/(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp))/i)
+      urls = m.message.scan(/(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp))/i)
       type = 'image'
       urls.each { |url|
         puts "ImageScraper: Image detected: #{url}"
@@ -116,8 +108,7 @@ class ImageScraper < BotPlugin
     if type != nil
       return {
         'urls' => urls,
-        'type' => type
-      }
+        'type' => type }
     else
       return nil
   end
@@ -125,12 +116,13 @@ class ImageScraper < BotPlugin
     handleError(e)
   end
 
-  def imageScrape(imgUrl, data)
+  def imageScrape(imgUrl, m)
+    # Saves and inserts imgUrl into image database. Calls generateLast if required.
     temporaryFilename = "#{@imageDirectory}/temp_#{Time.now.to_i}"
 
     # IB's image-saving code; grab image from URL and save into a temporary file
     timeout(@s['imageScrapeTimeout']) do
-      File.open(temporaryFilename, 'wb'){ |ofh|
+      File.open(temporaryFilename, 'wb') { |ofh|
         open(imgUrl) { |ifh|
           ofh.write(ifh.read(4096)) while !ifh.eof?
         }
@@ -145,21 +137,20 @@ class ImageScraper < BotPlugin
       # Else start extracting information
       urlData = imgUrl.split(/[\/.]/)
       imgName = urlData[urlData.size - 2]
-
       sCorrupt = false
       sUrl = imgUrl
-      sPoster = data["sender"]
+      sPoster = m.sender
       sTime = Time.now.to_i
-      sChannel = data["channel"]
-      sContext = data["message"]
+      sChannel = m.channel
+      sContext = m.message
       sFilesize = File.size(temporaryFilename)
       sFiletype = urlData[urlData.size - 1]
       sSHA256 = getSHA256(temporaryFilename)
       sMD5 = getMD5(temporaryFilename)
 
+      # If there is no filename conflict, commit temporary file
       newFilename = "#{@imageDirectory}/#{sSHA256}.#{sFiletype}"
 
-      # If there is no filename conflict, commit temporary file
       if File.size?(newFilename) == nil
         File.rename(temporaryFilename, newFilename)
       end
@@ -189,11 +180,11 @@ class ImageScraper < BotPlugin
     puts "ImageScraper: Unable to save image: Timeout (#{@imageScrapeTimeout}s)"
   rescue => e
     puts "ImageScraper: Unable to save image: #{e}"
-    #handleError(e)
   ensure
     File.delete(temporaryFilename) if File.file?(temporaryFilename) == true
   end
 
+  # Change these to prepared statements
   def recordImage(active, corrupt, sha256, md5, size, filetype)
     silentSql ("
       INSERT INTO image (
@@ -235,6 +226,7 @@ class ImageScraper < BotPlugin
   end
 
   def generateLast
+    # Generates last10.html, a page containing the last 10 images scraped
     numberOfImages = 10
     filename = 'public/ims-web/last10.html'
     mkHead(filename, 'HidoiBot:ims - Last 10 Images', 'last10.css')

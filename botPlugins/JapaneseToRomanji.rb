@@ -9,9 +9,6 @@ class JapaneseToRomanji < BotPlugin
     # Authorisations
     @reqJpToRomAuth = 0
 
-    # Strings
-    @noAuthMessage = "You are not authorised for this."
-
     # Required plugin stuff
     name = self.class.name
     hook = 'jptorom'
@@ -20,13 +17,12 @@ class JapaneseToRomanji < BotPlugin
     super(name, hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-
-    return authCheck(@reqJpToRomAuth) ? sayf(hiraToRom(stripTrigger(data))) : @noAuthMessage
+  def main(m)
+    m.reply(hiraToRom(m.stripTrigger)) if m.authR(@reqJpToRomAuth)
+    return nil
   rescue => e
-      handleError(e)
-      return nil
+    handleError(e)
+    return nil
   end
 
   def hiraToRom(translate)

@@ -81,7 +81,7 @@ class IRC
       "quit" => ['quit', 3],
       "restart" => ['restart', 3],
       "reload" => ['reload', 3],
-      "help" => ['getPluginHelp(data)', 0]
+      "help" => ['getPluginHelp(m)', 0]
     }
   end
 
@@ -103,8 +103,8 @@ class IRC
     @pluginHelp["#{hook}"] = help
   end
 
-  def getPluginHelp(data)
-    message = data["message"]
+  def getPluginHelp(m)
+    message = m.message
     message.gsub!(/^help ?/, '')
     hook = message.split(' ')[0]
 
@@ -251,6 +251,7 @@ class IRC
   end
 
   def parseData(data)
+    rawData = data
     message = data.split(' :')
     message = message[message.size - 1].chomp
     data = data.split(' ')
@@ -279,38 +280,39 @@ class IRC
       authLevel, realname, hostname, channel = nil
     end
 
-    return {
-      "sender" => sender,
-      "realname" => realname,
-      "hostname" => hostname,
-      "messageType" => messageType,
-      "channel" => channel,
-      "message" => message,
-      "authLevel" => authLevel,
-      "time" => Time.now,
-      "serverGroup" => @serverGroup,
-      "originId" => self.object_id,
-      "origin" => self
-    }
+    m = Message.new
+    m.sender = sender
+    m.realname = realname
+    m.hostname = hostname
+    m.messageType = messageType
+    m.channel = channel
+    m.message = message
+    m.rawMessage = rawData
+    m.authLevel = authLevel
+    m.serverGroup = @serverGroup
+    m.originId = self.object_id
+    m.origin = self
+
+    return m
   end
 
-  def handleData(data)
-    case data["messageType"]
+  def handleData(m)
+    case m.messageType
     when 'PING'
-      handlePing(data)
+      handlePing(m)
     when 'PONG'
-      handlePong(data)
+      handlePong(m)
     when 'PRIVMSG'
       # Handle private messages
-      if data["channel"] == @nickname
-        @replyChannel = data["sender"]
+      if m.channel == @nickname
+        @replyChannel = m.sender
       else
-        @replyChannel = data["channel"]
+        @replyChannel = m.channel
       end
 
-      triggerDetection(data)
-      handleProcessEvery(data)
-      ctcpDetection(data)
+      triggerDetection(m)
+      handleProcessEvery(m)
+      ctcpDetection(m)
     when '001'
       # When registered
       registerNickserv if @nickserv == 1
@@ -329,43 +331,43 @@ class IRC
     end
   end
 
-  def handlePing(data)
-    send "PONG #{data["sender"]} #{data["message"]}"
+  def handlePing(m)
+    send "PONG #{m.sender} #{m.message}"
   end
 
-  def handlePong(data)
+  def handlePong(m)
     deleteEventType('pingTimeout')
-    @latencyms = (Time.now.to_f - data["message"].to_f) * 1000
+    @latencyms = (Time.now.to_f - m.message.to_f) * 1000
   end
 
-  def handleProcessEvery(data)
+  def handleProcessEvery(m)
     # This sends data to every plugin that requested to process every PRIVMSG received
     @pluginMapping["processEvery"].each{ |pluginName|
-      data["processEvery"] = true
-      runPlugin(pluginName, data)
+      m.processEvery = true
+      runPlugin(pluginName, m)
     }
   end
 
-  def ctcpDetection(data)
-      case data["message"]
+  def ctcpDetection(m)
+      case m.message
       when /^[\001]PING(\s.+)?[\001]$/i
         # CTCP PING
-        puts "> CTCP PING from #{data["sender"]}"
-        send "NOTICE #{data["sender"]} :\001PING#{$1}\001"
+        puts "> CTCP PING from #{m.sender}"
+        send "NOTICE #{m.sender} :\001PING#{$1}\001"
       when /^[\001]VERSION[\001]?$/i
         # CTCP VERSION
-        puts "> CTCP VERSION from #{data["sender"]}"
-        send "NOTICE #{data["sender"]} :\001VERSION #{BOT_VERSION} - Ruby #{RUBY_VERSION}\001"
+        puts "> CTCP VERSION from #{m.sender}"
+        send "NOTICE #{m.sender} :\001VERSION #{BOT_VERSION} - Ruby #{RUBY_VERSION}\001"
       when /^[\001]TIME[\001]?$/i
         # CTCP TIME
-        puts "> CTCP TIME from #{data["sender"]}"
-        send "NOTICE #{data["sender"]} :\001TIME #{Time.now}\001"
+        puts "> CTCP TIME from #{m.sender}"
+        send "NOTICE #{m.sender} :\001TIME #{Time.now}\001"
       end
   end
 
-  def triggerDetection(data)
+  def triggerDetection(m)
     # Triggers are case-insensitive (/./i)
-    message = data["message"]
+    message = m.message
 
     if /^#{@trigger}/i === message || /^#{@nickname}: /i === message
       # Trigger via trigger character or nickname
@@ -375,7 +377,7 @@ class IRC
 
       trigger = message[0]
       pluginInfo = checkTriggerMap(trigger)
-      coreToRun = checkCoreTriggerMap(data, trigger)
+      coreToRun = checkCoreTriggerMap(m, trigger)
 
       if pluginInfo != nil
         pluginToRun = pluginInfo["moduleName"]
@@ -384,14 +386,14 @@ class IRC
 
       if coreToRun != nil
         puts "Core trigger detected: #{coreToRun}"
-        data["trigger"] = trigger
-        data["message"] = message.join(' ')
+        m.trigger= trigger
+        m.message = message.join(' ')
         eval(coreToRun)
       elsif pluginToRun != nil
         puts "Plugin trigger detected: #{pluginToRun}"
-        data["trigger"] = trigger
-        data["message"] = message.join(' ')
-        runPlugin(pluginToRun, data)
+        m.trigger = trigger
+        m.message = message.join(' ')
+        runPlugin(pluginToRun, m)
       else
         puts "triggerDetection: No mapping for #{message} was found."
       end
@@ -400,9 +402,9 @@ class IRC
     handleError(e)
   end
 
-  def checkCoreTriggerMap(data, trigger)
+  def checkCoreTriggerMap(m, trigger)
     # Core triggers, checks which core trigger was called, with authorisation check
-    hostname = data["hostname"]
+    hostname = m.hostname
 
     if @coreMapping[trigger] != nil
       if @coreMapping[trigger][0] != nil && checkAuth(hostname) >= @coreMapping[trigger][1]
@@ -428,9 +430,10 @@ class IRC
     end
   end
 
-  def runPlugin(plugin, data)
-    if data != nil
-      returnData = eval("$#{plugin}.main(data)")
+  def runPlugin(plugin, m)
+    if m != nil
+      runs = "$#{plugin}.main(m)"
+      returnData = eval(runs)
     end
 
     eval(returnData) if returnData != nil
@@ -456,9 +459,9 @@ class IRC
     }
   end
 
-  def send(data)
-    puts "SEND: #{data}"
-    @connection.puts data.to_s
+  def send(m)
+    puts "SEND: #{m}"
+    @connection.puts m.to_s
   rescue => e
     handleError(e)
   end
@@ -469,20 +472,14 @@ class IRC
 
   def sayTo(channel, message)
     puts "SAY TO #{channel}: #{message}"
-
     message = message.to_s
 
-    # If a line ('\n's counted) is too long we split it to avoid abrupt truncations
-    message.each_line("\n") { |s|
-      if s.length > @maxMessageLength
-        for i in 1..((message.length/@maxMessageLength).floor)
-          insertIndex = i * @maxMessageLength
-          s.insert(insertIndex, "...\n")
-        end
+    if message.length > @maxMessageLength
+      for i in 1..((message.length/@maxMessageLength).floor)
+        message.insert(i * @maxMessageLength, "...\n")
       end
-    }
+    end
 
-    # Delay sending of successive split messages to avoid flood detection
     message.each_line("\n") { |s|
       @connection.puts "PRIVMSG #{channel} :#{s}"
       sleep(@messageSendDelay)
@@ -491,9 +488,9 @@ class IRC
 
   # HidoiAuth(tm), "ENTERPRISE QUALITY"
   # Authentication uses a user's hostname
-  def auth(data)
-    hostname = data["hostname"]
-    password = data["message"].gsub(/^auth /, '')
+  def auth(m)
+    hostname = m.hostname
+    password = m.message.gsub(/^auth /, '')
 
     if @passwordList[password] != nil
       authLevel = @passwordList[password]
@@ -504,9 +501,9 @@ class IRC
     end
   end
 
-  def deauth(hostname)
-    if @authUsers[hostname] > 0
-      @authUsers.delete(hostname)
+  def deauth(m)
+    if @authUsers[m.hostname] > 0
+      @authUsers.delete(m.hostname)
       say "Deauthenticated."
     else
       say "You are not even authenticated."

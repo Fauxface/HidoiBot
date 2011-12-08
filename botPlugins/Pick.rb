@@ -18,21 +18,16 @@ class Pick < BotPlugin
     super(name, @hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-
-    if checkAuth(@reqPickAuth)
-      list = stripTrigger(data)
-      picks = arguments(data)[0].to_i
-
-      !(/[1-9]/ === picks.to_s) ? picks = 1 : list.gsub!("#{picks.to_s} ", '')
-
+  def main(m)
+    if m.authR(@reqPickAuth)
+      list = m.stripTrigger
+      picks = m.args[0].to_i
+      !(/[1-9]/ === picks.to_s) ? picks = 1 : list.gsub!("#{picks.to_s} ", '') # No pick count given, reinsert picks which was actually an option
       parsedList = parseOptions(list)
-
-      return sayf(pick(picks, parsedList))
-    else
-      return sayf(@noAuthMsg)
+      m.reply(pick(picks, parsedList))
     end
+    
+    return nil
   rescue => e
     handleError(e)
     return nil

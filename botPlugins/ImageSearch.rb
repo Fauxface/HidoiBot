@@ -7,12 +7,10 @@ class ImageSearch < BotPlugin
     extend HidoiSQL
     hsqlInitialize
 
-    if !checkImageTable
-      raise 'No image database was found'
-    end
+    raise 'No image database was found' if !checkImageTable
 
     # Strings
-    @notAuthorisedMessage = 'You are not authorised for this.'
+    @noModeMessage = "Invalid mode."
 
     # Authorisations
     @reqHashAuth = 0
@@ -20,42 +18,47 @@ class ImageSearch < BotPlugin
     @reqRndImgAuth = 0
     @reqInfoAuth = 0
 
+    # Hooks
+    @recallHook = "recall"
+    @imsHook = "ims"
+    @rndimgHook = "rndimg"
+    
     # Required plugin stuff
     name = self.class.name
-    @hook = ['recall', 'ims', 'rndimg']
+    @hook = [@recallHook, @imsHook, @rndimgHook]
     processEvery = false
     help = "Usage: #{@hook} *(hash <hash>|url <url>|info <hash>)\nFunction: Searches through ImageScraper's image database for details. hash returns source URLs from a SHA256 hash, url returns images mirrored on ImageScraper's database. Append ' :nomirror' to imagelinks if you wish to prevent ImageScraper from scraping links."
     super(name, @hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-
-    if data["trigger"] == @hook[0]
+  def main(m)
+    if m.trigger == @recallHook
       # Recall URL to give mirror
       mode = 'url'
-      term = arguments(data)[0]
-    elsif data["trigger"] == @hook[1]
+      term = m.mode
+    elsif m.trigger == @imsHook
       # Ims
-      mode = arguments(data)[0]
-      term = arguments(data)[1]
-    elsif data["trigger"] == @hook[2]
+      mode = m.mode
+      term = m.args[1] # args[0] is the mode
+    elsif m.trigger == @rndimgHook
       # Random image
       mode = 'rndimg'
     end
 
     case mode
     when 'hash'
-      return authCheck(@reqHashAuth) ? sayf(recallUrlFromHash(term).join(', ')) : sayf(@notAuthorisedMessage)
+      m.reply(recallUrlFromHash(term).join(', ')) if m.authR(@reqHashAuth)
     when 'url'
-      return authCheck(@reqUrlAuth) ? sayf(mirrify(recallHashFromUrl(term))) : sayf(@notAuthorisedMessage)
+      m.reply(mirrify(recallHashFromUrl(term))) if m.authR(@notAuthorisedMessage)
     when 'info'
-      return authCheck(@reqInfoAuth) ? sayf(getHashDetails(term)) : sayf(@notAuthorisedMessage)
+      m.reply(getHashDetails(term)) if m.authR(@notAuthorisedMessage)
     when 'rndimg'
-      return authCheck(@reqRndImgAuth) ? sayf(mirrify(randomImage)) : sayf(@notAuthorisedMessage)
+      m.reply(mirrify(randomImage)) if m.authR(@notAuthorisedMessage)
     else
-      return nil
+      m.reply(@noModeMessage)
     end
+
+    return nil
   rescue => e
     handleError(e)
     return nil
@@ -64,8 +67,6 @@ class ImageSearch < BotPlugin
   def mirrify(term)
     prepend = "#{$botUrl}#{$imageServeDirectoryFromPublic}/"
     postfix = ' :nomirror'
-    puts term.class
-    puts term.inspect
 
     if term.class == Array
       term.each { |item|
@@ -137,8 +138,6 @@ class ImageSearch < BotPlugin
     puts 'ImageSearch: Recalling hash.filetype from hash.'
     hash = sanitizeHash(hash)
     filetype = sql("SELECT filetype FROM image WHERE sha256='#{hash}'")[0][0]
-    #filetype = sql("SELECT filetype FROM source WHERE image_id='#{imageId}'")[0]
-
     rs = "#{hash}.#{filetype}"
 
     return rs

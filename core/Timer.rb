@@ -3,6 +3,15 @@
 # Timer.rb
 # Does the checking for events (eg. pingchecks, reminders)
 
+class Event
+  attr_accessor :message
+  attr_accessor :occurrence
+  attr_accessor :occurrenceOffset
+  attr_accessor :time
+  attr_accessor :type
+  attr_accessor :user
+end
+
 module Timer
   def timerInitialize
     @events = Array.new
@@ -22,23 +31,23 @@ module Timer
   def checkEvents
     @events.each { |event|
       begin
-        if event["time"] < Time.now
+        if event.time < Time.now
           handleEvent(event) if event != nil
         end
       rescue
         # If malformed event, delete it
-        event["occurrence"] = 'inactive'
+        event.occurrence = 'inactive'
       end
     }
   end
 
   def handleEvent(event)
-    if event != nil && event["occurrence"] != 'inactive'
-      case event["type"]
+    if event.class == Event && event.occurrence != 'inactive'
+      case event.type
       when 'pingServer'
         send "PING #{Time.now.to_f}"
       when 'reminder'
-        sayTo(event["user"], event["message"])
+        sayTo(event.user, event.message)
       when 'pingTimeout'
         puts 'PING TIMEOUT'
         reconnect
@@ -51,45 +60,42 @@ module Timer
   end
 
   def handleOccurrence(event)
-    case event["occurrence"]
+    case event.occurrence
     when 'single'
-      event["occurrence"] = 'inactive'
+      event.occurrence = 'inactive'
     when 'recurring'
-      addEvent(event["user"], event["type"], event["time"] + event["occurrenceOffset"].to_i, event["occurrence"], event["occurrenceOffset"], event["message"])
-      event["occurrence"] = 'inactive'
+      event.time = event.time + event.occurrenceOffset.to_i
     end
   end
 
   def deleteEventType(eventType)
     @events.delete_if { |event|
-      event["type"] == eventType
+      event.type == eventType
     }
   end
 
   def deleteEventOccurrence(eventOccurrence)
     @events.delete_if { |event|
-      event["occurrence"] == eventOccurrence
+      event.occurrence == eventOccurrence
     }
   end
 
   def deleteReminderUser(user)
     @events.delete_if { |event|
-      event["user"] == user
-      event["type"] == 'reminder'
+      event.user == user
+      event.type == 'reminder'
     }
   end
 
   def cleanupEvents
     @events.delete_if { |event|
-      event["occurrence"] == 'inactive'
+      event.occurrence == 'inactive'
     }
     @events.compact!
   end
 
   def addEvent(user, type, time, occurrence, occurrenceOffset, *message)
-    if !time.is_a?(Time)
-        time = Time.at(time.to_i)
-    end
+    time = Time.at(time.to_i) if !time.is_a?(Time)
 
     # Input checking
     if occurrence != 'single' && occurrence != 'recurring'
@@ -100,24 +106,14 @@ module Timer
       raise "Timer: Bad time object - #{time} #{time.class}"
     end
 
-    event = {
-      # Who to remind
-      "user" => user,
+    event = Event.new
+    event.user = user
+    event.type = type
+    event.time = time
+    event.occurrence = occurrence
+    event.occurrenceOffset = occurrenceOffset
 
-      # Type of event, see handleEvent
-      "type" => type,
-
-      # Time in integer
-      "time" => time,
-
-      # Type of event (single, recurring)
-      "occurrence" => occurrence,
-
-      # Time between recurring events
-      "occurrenceOffset" => occurrenceOffset
-    }
-
-    message[0] != nil ? event["message"] = message[0] : event["message"] = nil
+    message[0] != nil ? event.message = message[0] : event.message = nil
     @events[@events.size] = event
   rescue => e
     handleError(e)

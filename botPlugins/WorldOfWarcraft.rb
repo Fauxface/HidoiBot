@@ -11,7 +11,6 @@ class WorldOfWarcraft < BotPlugin
     @reqWowAuth = 0
 
     # Strings
-    @noAuthMsg = "You are not authorised for this."
     @noRealmMsg = "No such realm was found."
     @queueMsg = "There is a queue for this realm."
 
@@ -23,10 +22,9 @@ class WorldOfWarcraft < BotPlugin
     super(name, hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-
-    return authCheck(@reqWowAuth) ? sayf(realmStatus(stripTrigger(data))) : sayf(@noAuthMsg)
+  def main(m)
+    m.reply(realmStatus(m.stripTrigger)) if m.authR(@reqWowAuth)
+    return nil
   rescue => e
     handleError(e)
     return nil
@@ -54,7 +52,13 @@ class WorldOfWarcraft < BotPlugin
       population = realmPopulations[realmnumber].inner_text
       status = realmStatus[realmnumber]['data-raw'].capitalize!
 
-      rs = "#{name} (#{type}, #{locale}, #{population}): #{bold(status)}"
+      if status == "Up"
+        status = colour(status, 9)
+      elsif status == "Down"
+        status = colour(status, 4)
+      end
+
+      rs = "#{bold(name)} (#{type}, #{locale}, #{population}): #{bold(status)}"
       rs.gsub!(/(\\n|\t)/,'')
       rs.gsub!("\n",'')
 

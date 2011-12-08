@@ -17,7 +17,6 @@ class RottenTomatoes < BotPlugin
     @reqRottenAuth = 0
 
     # Strings
-    @noAuthMsg = "You are not authorised for this."
     @noResultsMsg = "No results were found."
 
     # Required plugin stuff
@@ -42,29 +41,26 @@ class RottenTomatoes < BotPlugin
     end
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-
-    if checkAuth(@reqRottenAuth)
-      mode = arguments(data)[0]
-
-      case mode
+  def main(m)
+    if m.authR(@reqRottenAuth)
+      case m.mode
       when /(ratings?|score)/
-        movie = stripWordsFromStart(data['message'], 2)
-        return sayf(getOnlyMovieRating(movie))
+        movie = m.shiftWords(2)
+        m.reply(getOnlyMovieRating(movie))
       else
-        movie = stripWordsFromStart(data['message'], 1)
-        return sayf(getMovieSummary(movie))
+        movie = m.shiftWords(1)
+        m.reply(getMovieSummary(movie))
       end
-    else
-      return sayf(@noAuthMsg)
     end
+
+    return nil
   rescue => e
     handleError(e)
     return nil
   end
 
   def call(query = 'inception')
+    # Calls RottonTomatoes API
     # doc is a Hash with keys: total, movies, links, links_templates
     #
     # movies is an Array of Hashes
@@ -93,48 +89,47 @@ class RottenTomatoes < BotPlugin
 
   # Modes
   def getMovieSummary(movie)
-    m = call(movie)
+    mov = call(movie)
 
-    if m["total"].to_i <= 0
+    if mov["total"].to_i <= 0
       return @noResultsMsg
     else
-      m = m["movies"][0]
-      basics = bold(getMovieBasic(m))
-      synopsis = getMovieSynopsis(m)
-      ratings = getMovieRatings(m)
+      mov = mov["movies"][0]
+      basics = bold(getMovieBasic(mov))
+      synopsis = getMovieSynopsis(mov)
+      ratings = getMovieRatings(mov)
 
       return "#{basics}\n#{synopsis}\nRatings - #{ratings}"
     end
   end
 
   def getOnlyMovieRating(movie)
-    m = call(movie)
+    mov = call(movie)
 
-    if m["total"].to_i <= 0
+    if mov["total"].to_i <= 0
       return @noResultsMsg
     else
-      m = m["movies"][0]
-      basics = bold(getMovieBasic(m))
-      ratings = getMovieRatings(m)
+      mov = mov["movies"][0]
+      basics = bold(getMovieBasic(mov))
+      ratings = getMovieRatings(mov)
 
       return "#{basics}\n#{ratings}"
     end
   end
 
-  # Constructors
-  def getMovieBasic(m)
-    return "#{m["title"]} (#{m["year"]})"
+  def getMovieBasic(mov)
+    return "#{mov["title"]} (#{mov["year"]})"
   end
 
-  def getMovieSynopsis(m)
-    return "#{m["synopsis"]}"
+  def getMovieSynopsis(mov)
+    return "#{mov["synopsis"]}"
   end
 
-  def getMovieRatings(m)
-    return "Critics: #{m["ratings"]["critics_score"]}, Audience: #{m["ratings"]["audience_score"]}"
+  def getMovieRatings(mov)
+    return "Critics: #{mov["ratings"]["critics_score"]}, Audience: #{mov["ratings"]["audience_score"]}"
   end
 
-  def formatInput!(data)
-    data.gsub!(" ", '+')
+  def formatInput!(s)
+    s.gsub!(" ", '+')
   end
 end

@@ -15,9 +15,10 @@ class DaysUntilDate < BotPlugin
     super(name, hook, processEvery, help)
   end
 
-  def main(data)
-    date = arguments(data)[0]
-    return sayf(prettify(calcDaysUntilDate(parseDate(date))))
+  def main(m)
+    date = m.args[0]
+    m.reply(prettify(calcDaysUntilDate(parseDate(date))))
+    return nil
   rescue => e
     handleError(e)
     return sayf("Invalid date format. Enter any parsable date (eg. DDMMYY).")
@@ -49,9 +50,9 @@ class DaysUntilDate < BotPlugin
       weekdays += 1 if (!day.saturday? && !day.sunday?)
     }
 
-    return {days: daysToDate,
-            weekdays: weekdays,
-            deadline: deadline}
+    return { days: daysToDate,
+             weekdays: weekdays,
+             deadline: deadline }
   rescue => e
     handleError(e)
     return nil
@@ -70,7 +71,7 @@ class DaysUntilDate < BotPlugin
     elsif dates[:days] == dates[:weekdays]
       return "#{dates[:weekdays]} weekday#{weekdaysPlural} until #{dates[:deadline]}"
     else
-      return "#{dates[:days]} day#{daysPlural}, #{dates[:weekdays]} weekday#{weekdaysPlural} until #{dates[:deadline]}"
+      return "#{dates[:days]} day#{daysPlural} (#{dates[:weekdays]} weekday#{weekdaysPlural}) until #{dates[:deadline]}"
     end
   rescue => e
     handleError(e)

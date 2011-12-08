@@ -8,23 +8,22 @@ class Maths < BotPlugin
     # Authorisations
     @reqAuthLevel = 0
 
-    # Strings
-    @noAuthMessage = "You are not authorised for this."
-
     # Required plugin stuff
     name = self.class.name
     @hook = ["math", "maths"]
     processEvery = false
-    @help = "Usage: #{@hook} <expression>\nFunction: Evaluates basic mathematical expressions. Accepts +, -, /, *, ^, **, >, <, >=, <=, == and % as operators."
+    @help = "Usage: #{@hook} <expression>\nFunction: Evaluates basic mathematical expressions. Accepts +, -, /, *, ^, **, >, <, >=, <=, == and % as operators. Leave spaces between terms and operators."
     super(name, @hook, processEvery, @help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-    rs = reversePolishNotation(shuntInput(formatInput(stripWordsFromStart(data["message"], 1))))
-    rs = @help if rs == nil
+  def main(m)
+    if m.authR(@reqAuthLevel)
+      rs = reversePolishNotation(shuntInput(formatInput(m.shiftWords(1))))
+      rs = @help if rs == nil
+      m.reply(rs)
+    end
 
-    return authCheck(@reqAuthLevel) ? sayf(rs) : sayf(@noAuthMessage)
+    return nil
   rescue => e
     handleError(e)
     return sayf(e)

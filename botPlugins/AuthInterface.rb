@@ -12,26 +12,21 @@ class AuthInterface < BotPlugin
     super(name, @hook, processEvery, help)
   end
 
-  def main(data)
-    if data["trigger"] == @hook[0]
-      mode = 'auth'
-      password = arguments(data)[0]
-    elsif data["trigger"] == @hook[1]
-      mode = 'deauth'
-    elsif data["trigger"] == @hook[2]
-      mode = 'checkauth'
+  def main(m)
+    case m.trigger
+    when @hook[0]
+      # Auth
+      password = m.args[0]
+      m.origin.auth(m)
+    when @hook[1]
+      # Deauth
+      m.origin.deauth(m)
+    when @hook[2]
+      # Checking auth
+      m.reply("You have authorisation level: #{m.authLevel}")
     end
 
-    case mode
-    when 'auth'
-      return "auth(data)"
-    when 'deauth'
-      return "deauth('#{data["hostname"]}')"
-    when 'checkauth'
-      return sayf("You have authorisation level: #{data["authLevel"]}")
-    else
-      return nil
-    end
+    return nil
   rescue => e
     handleError(e)
     return nil

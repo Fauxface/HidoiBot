@@ -7,9 +7,6 @@ class ChannelsInterface < BotPlugin
     # Authorisations
     @reqAuthLevel = 3
 
-    # Strings
-    @noAuthMsg = 'You are not authorised for this.'
-
     # Required plugin stuff
     name = self.class.name
     hook = ["join", "part", "nick"]
@@ -18,24 +15,21 @@ class ChannelsInterface < BotPlugin
     super(name, hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
+  def main(m)
+    if m.authR(@reqAuthLevel)
+      channel = m.args[0]
 
-    if authCheck(@reqAuthLevel)
-      mode = data["trigger"]
-      channel = arguments(data)[0]
-
-      case mode
+      case m.trigger
       when 'join'
-        return "joinChannel('#{channel}')"
+        m.origin.joinChannel(channel)
       when 'part'
-        return "partChannel('#{channel}')"
+        m.origin.partChannel(channel)
       when 'nick'
-        return "send 'NICK #{channel}'"
+        m.origin.send("NICK #{channel}")
       end
-    else
-      return sayf(@noAuthMsg)
     end
+    
+    return nil
   rescue => e
     handleError(e)
     return nil

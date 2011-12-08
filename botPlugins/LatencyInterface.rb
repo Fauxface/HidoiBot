@@ -8,9 +8,6 @@ class LatencyInterface < BotPlugin
     @reqLatencyAuth = 0
     @reqLatencyRefreshAuth = 3
 
-    # Strings
-    @noAuthMessage = 'You are not authorised for this.'
-
     # Required plugin stuff
     name = self.class.name
     @hook = "latency"
@@ -19,21 +16,17 @@ class LatencyInterface < BotPlugin
     super(name, @hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-    mode = arguments(data)[0]
-
-    case 
-    when mode == "refresh"
-      if authCheck(@reqLatencyRefreshAuth)
-        data["origin"].pingServer
-        return sayf('Latency refreshed.')
-      else
-        return sayf(@noAuthMessage)
+  def main(m)
+    if m.mode == "refresh"
+      if m.authR(@reqLatencyRefreshAuth)
+        m.origin.pingServer
+        m.reply('Latency refreshed.')
       end
-    else
-      return authCheck(@reqLatencyAuth) ? 'say "#{@latencyms.to_i}ms"' : sayf(@noAuthMessage)
+    elsif m.authR(@reqLatencyAuth)
+      return 'say "#{@latencyms.to_i}ms"' # Has to use IRC object's own @latencyms
     end
+
+    return nil
   rescue => e
     handleError(e)
     return nil

@@ -14,12 +14,14 @@ class BotPlugin
     end
   end
 
-  # For getOriginObject
-  include ObjectSpace
-
   def initialize(botModuleName, hook, processEvery, *help)
-    # Make a doBotsMapping method
-    if hook.class == Array and hook.size > 1
+    # Initialises plugins and maps their hooks so they can be called using commands.
+    # The plugin will extend BotPlugin, and call super(botModuleName, hook, processEvery, *help) in its own initialise method
+    # or other method that works
+    #
+    # TODO: Make a doBotsMapping method, so support for multiple servers is handled
+
+    if hook.class == Array && hook.size > 1
       # If multiple hooks
       hook.each { |i|
         $bot1.doPluginMapping(i, botModuleName, processEvery)
@@ -34,120 +36,69 @@ class BotPlugin
     puts "Bot plugin #{botModuleName} loaded."
   end
 
-  def getOriginObject(data)
-    # Returns origin of data via an object.object_id contained in data["originId"]
-    # So that you can access methods from the origin
-    return ObjectSpace._id2ref(data["originId"])
-  rescue => e
-    handleError(e)
-    return nil
-  end
-
-  def authCheck(requiredLevel)
-    # Returns true is you have authorisation, else return false
-    raise "Error in BotPlugin: authRequired: @givenLevel is not defined in plugin" if @givenLevel == nil
-
-    return requiredLevel <= @givenLevel ? true : false
-  rescue => e
-    return false
-  end
-
-  def checkAuth(requiredLevel)
-    # Alias, I always confuse the ordre
-    return authCheck(requiredLevel)
-  end
-
-  def arguments(data)
-    # Delete trigger but split message, arguments(data)[someInteger] can be used for mode selection
-    arguments = data["message"].split(' ')
-
-    if arguments.class == Array
-      # Delete trigger from arguments
-      arguments.delete_at(0)
-      return arguments
-    else
-      return nil
-    end
-  end
-
-  def detectTrigger(data)
-    return data["message"].split(' ')[0]
-  end
-
-  def stripTrigger(data)
-    # Delete trigger but leave remaining message intact
-    return arguments(data).join(' ')
-  end
-
-  def stripWordsFromStart(s, number)
-    splitWords = s.split(' ')
-
-    for i in 1..number
-      splitWords.delete_at(0)
-    end
-
-    return splitWords.join(' ')
-  end
-
-  def stripWordsFromEnd(s, number)
-    splitWords = s.split(' ')
-    splitWords = splitWords.reverse
-
-    for i in 1..number
-      splitWords.delete_at(0)
-    end
-
-    return splitWords.reverse.join(' ')
-  end
-
-  def detectMode(data)
-    # Returns first block of message
-    # This can be used to detect if a plugin processing every line was called using a trigger
-    arguments = data["message"].split(' ')
-    return arguments[1]
-  end
+  ###################
+  # Text prepration #
+  ###################
 
   def escapeSyntax(s)
+    # Escapes s for SQL/eval.
+    # !-Bad-! Use m.origin.methodToCall instead to avoid eval errors.
     # Use this if you are getting syntax errors in IRC from breaking eval
-    # Use escapeSyntaxHard IF YOU GOT MAD LIKE I DID AT THE ATROCIOUS ESCAPING REQUIRED
-    s = s.gsub(/[\\]/, '\\\\\\') if s.class == String
-    s = s.gsub(/[']/, '\\\\\'') if s.class == String
-    s = s.gsub(/["]/, '\\\\\"') if s.class == String
+    # Use escapeSyntaxHard for more hardcore escapism action
+
+    if s.class == String
+      s = s.gsub(/[\\]/, '\\\\\\')
+      s = s.gsub(/[']/, '\\\\\'')
+      s = s.gsub(/["]/, '\\\\\"')
+    end
+
     return s
   end
 
   def escapeSyntaxHard(s)
-    # Apostrophes more like hate
+    # Escapes s harder for SQL/eval.
+    # !-Bad-! Use prepared statements instead for SQL
     # http://weblog.jamisbuck.org/2004/12/19/sqlite3-bindings-for-ruby
-    # Prepared statements
+
     s = s.gsub(/['"]/, '`')
-    return s
   end
 
   def sayf(s)
+    # Formats a string to be used in IRC.runPlugin's eval().
+    # Preferably use `m.reply` in plugins
     # Formats a string in prepration for returns to the main bot
-    rs = "say '#{escapeSyntax(s)}'"
-    return rs
+
+    return "say '#{s}'"
   end
 
-  def bold(s)
-    boldChar = "\002"
-    s.insert(0, boldChar)
-    s.insert(s.size, boldChar)
+  # Alias for rbot style
+  alias :echo :sayf
 
-    return s
+  #######################
+  # IRC text formatting #
+  #######################
+
+  def bold(s)
+    # Prepend and append IRC control code for bold to s
+    boldChar = "\002"
+    return prependAppend(s, boldChar)
   end
 
   def italic(s)
+    # Prepend and append IRC control code for italic to s
     # Or oblique, whichever floats your boat
     italicChar = "\011"
-    s.insert(0, italicChar)
-    s.insert(s.size, italicChar)
+    return prependAppend(s, italicChar)
+  end
 
-    return s
+  def underline(s)
+    # Prepend and append IRC control code for underline to s
+    underlineChar = "\037"
+    return prependAppend(s, underlineChar)
   end
 
   def colour(s, textColour, highlightColour=nil)
+    # Prepend and append IRC control code for colour and highlight to s
     colourChar = "\003"
 
     if !isColour?(textColour)
@@ -163,44 +114,51 @@ class BotPlugin
     end
 
     s.insert(0, colourCodes)
-    s.insert(0, colourChar)
-    s.insert(s.size, colourChar)
-
-    return s
+    return prependAppend(s, colourChar)
   rescue => e
     handleError(e)
     return s
   end
 
   def isColour?(colourCode)
-    # Checks for range 0-15
+    # Checks colourCode for range 0-15
     /^(0?[0-9]|[0-1][0-5]?)$/ === "#{colourCode}" ? true : false
   end
 
-  def underline(s)
-    underlineChar = "\037"
-    s.insert(0, underlineChar)
-    s.insert(s.size, underlineChar)
-
-    return s
-  end
-
   def reverseColour(s)
+    # Prepend and append IRC control code for reverse colour to s
     reverseChar = "\026"
-    s.insert(0, reverseChar)
-    s.insert(s.size, reverseChar)
-
-    return s
+    return prependAppend(s, reverseChar)
   end
+
+  # Alias for the AMERICANS
+  alias :color :colour
+  alias :isColor? :color
+  alias :reverseColor :reverseColour
 
   def clearCodes
+    # Returns IRC control code for normal
     normalChar = "\017"
     return normalChar
   end
 
-  def decimalPlace(f)
-    # To two decimal places
-    return ((f * 100).round)/100.0
+  def prependAppend(s, word)
+    # Helper method for insertion of IRC control codes
+    s.insert(0, word)
+    s.insert(s.size, word)
+
+    return s
+  end
+
+  def decimalPlace(f, p=2)
+    # Returns f rounded to p decimal places
+    raise "Invalid precision" if !p.is_a? Integer
+    p = 10 ** p
+
+    return ((f * p).round)/(p.to_f)
+  rescue => e
+    handleError(e)
+    return f
   end
 
   def humaniseSeconds(second)
@@ -263,23 +221,30 @@ class BotPlugin
     return humanDate.join(", ")
   end
 
+  ###################
+  # Plugin settings #
+  ###################
+
   def loadSettings
-    @configPath = 'botPlugins/settings/'
-    @s = JSON.parse(open("#{@configPath}/#{@settingsFile}", "a+").read)
+    # Loads persistent plugin settings.
+    configPath = 'botPlugins/settings/' # Doesn't work as a class/instance variable?
+    @s = JSON.parse(open("#{configPath}/#{@settingsFile}", "a+").read)
   rescue => e
     handleError(e)
   end
 
   def saveSettings
-    @configPath = 'botPlugins/settings/'
-    f = File.open("#{@configPath}/#{@settingsFile}", "w")
-    f.puts @s.to_json
-    f.close
+    # Saves persistent plugin settings.
+    configPath = 'botPlugins/settings/' # Doesn't work as a class/instance variable?
+    File.open("#{configPath}/#{@settingsFile}", "w") { |file|
+      file.puts @s.to_json
+    }
   rescue => e
     handleError(e)
   end
 
   def handleError(e)
+    # Handles errors. Prints the error and its backtrace.
     puts e
     puts e.backtrace.join("\n")
   end

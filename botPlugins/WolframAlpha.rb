@@ -13,7 +13,6 @@ class WolframAlpha < BotPlugin
     @reqWolframAuth = 0
 
     # Strings
-    @noAuthMsg = "You are not authorised for this."
     @noResultsMsg = "No results."
 
     # Required plugin stuff
@@ -24,28 +23,26 @@ class WolframAlpha < BotPlugin
     super(name, hook, processEvery, help)
   end
 
-  def main(data)
+  def main(m)
     # Yes, I am aware of the fact that this is an atrociously written plugin
-    mode = arguments(data)[0]
-    searchTerm = stripTrigger(data)
-    @givenLevel = data["authLevel"]
+    if m.authR(@reqWolframAuth)
+      searchTerm = m.stripTrigger
 
-    if checkAuth(@reqWolframAuth)
-      case mode
+      case m.mode
       when 'all'
-        return sayf(wolfram(searchTerm, 20))
+        m.reply(wolfram(searchTerm, 20))
       else
-        return sayf(wolfram(searchTerm))
+        m.reply(wolfram(searchTerm))
       end
-    else
-      return sayf(@noAuthMsg)
     end
+
+    return nil
   rescue => e
     handleError(e)
     return nil
   end
 
-  def wolfram(searchterm, limit=3)
+  def wolfram(searchterm, limit=2)
     ra = Array.new
     puts "Wolfram|Alpha: searching for #{searchterm}"
     formatWolframInput(searchterm)

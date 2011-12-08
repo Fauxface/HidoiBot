@@ -13,11 +13,11 @@ class Humidex < BotPlugin
     super(name, hook, processEvery, help)
   end
 
-  def main(data)
-    airTempC = arguments(data)[0]
-    dewPointC = arguments(data)[1]
-
-    return sayf(calcHumidex(airTempC.to_f, dewPointC.to_f))
+  def main(m)
+    airTempC = m.args[0]
+    dewPointC = m.args[1]
+    m.reply("Humidex: #{calcHumidex(airTempC.to_f, dewPointC.to_f)}")
+    return nil
   rescue => e
     handleError(e)
     return nil
@@ -41,6 +41,6 @@ class Humidex < BotPlugin
         hstatus = "No discomfort is expected."
     end
 
-    return "Humidex: #{(humid).to_s[0..5]}; #{hstatus}"
+    return "#{decimalPlace((humid), 2)}; #{hstatus}"
   end
 end

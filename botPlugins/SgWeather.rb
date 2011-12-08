@@ -9,6 +9,9 @@ class SgWeather < BotPlugin
   require 'nokogiri' # gem
 
   def initialize
+    # Authorisations
+    @reqAuth = 0
+
     # Required plugin stuff
     name = self.class.name
     hook = "sgweather"
@@ -17,8 +20,9 @@ class SgWeather < BotPlugin
     super(name, hook, processEvery, help)
   end
 
-  def main(data)
-    return sayf(scrapeWeather)
+  def main(m)
+    m.reply(scrapeWeather) if m.authR(@reqAuth)
+    return nil
   rescue => e
     handleError(e)
     return nil
@@ -32,13 +36,10 @@ class SgWeather < BotPlugin
     temperature.gsub!('Â','')
     humidity =  doc.search('//span[@id="ctl00_ctl00_cphBody_cphContent_lblTodayHumidity"]').inner_text
     validTime = doc.search('//div[@id="ctl00_ctl00_divTodayValidTime"]').inner_text\
-
     avTemp = (temperature[0..1].to_f + temperature[3..4].to_f)/2
     avHumi = (humidity[0..1].to_f + humidity[3..4].to_f)/2
 
-    rs = "#{forecast} #{temperature} @ #{humidity} humidity. Valid #{validTime} +800GMT. Heat Index: #{calcHeatIndex(avTemp, avHumi)}"
-
-    return rs
+    return "#{forecast} #{temperature} @ #{humidity} humidity. Valid #{validTime} +800GMT. Heat Index: #{calcHeatIndex(avTemp, avHumi)}°C"
   end
 
   def calcHeatIndex(tempC, humidity)
@@ -47,6 +48,6 @@ class SgWeather < BotPlugin
     hiF = con1 + con2 * tempF + con3 * humidity + con4 * tempF * humidity + con5 * tempF**2 + con6 * humidity**2 + con7 * tempF**2 * humidity + con8 * tempF * humidity**2 + con9 * tempF**2 * humidity**2
     hiC = (hiF - 32) * 5 / 9
 
-    return "#{hiC.to_s[0..3]}°C"
+    return decimalPlace(hiC, 2)
   end
 end

@@ -37,7 +37,7 @@ class MarkovChat < BotPlugin
     @markovSettingsPath = "botPlugins/settings/markovChat"
     @trainingFile = "braintrain.txt"
     @brainFile = "brain.json"
-    @settingsFile = "markovChat/chatSettings.txt"
+    @settingsFile = "markovChat/chatSettings.json"
 
     # Initialization stuff
     @brain = Hash.new
@@ -60,7 +60,7 @@ class MarkovChat < BotPlugin
     @chipOffMsg = "Chipping in is now off."
     @chipInPMsg = "Probability of chipping in: "
     @noRespMsg = "Derp."
-    @noAuthMsg = "You are not authorised for this."
+    @noModeMsg = "Invalid mode."
 
     # Required plugin stuff
     name = self.class.name
@@ -70,68 +70,76 @@ class MarkovChat < BotPlugin
     super(name, @hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-
-    if data["processEvery"] == true && data["trigger"] == @hook
+  def main(m)  
+    if m.processEvery && m.trigger == @hook
       # Not learning triggers
       return nil
 
-    elsif data["processEvery"] != true && data["trigger"] == @hook
+    elsif m.processEvery != true && m.trigger == @hook
       # If called using trigger
-      mode = detectMode(data)
-
       # Modes
-      case mode
+      case m.mode
       when 'learnon'
-        return @noAuthMsg if !checkAuth(@reqLearningAuth)
-        @s['learning'] = true
-        saveSettings
-        return sayf(@learnOnMsg)
+        if m.authR(@reqLearningAuth)
+          @s['learning'] = true
+          saveSettings
+          m.reply(@learnOnMsg)
+        end
 
       when 'learnoff'
-        return @noAuthMsg if !checkAuth(@reqLearningAuth)
-        @s['learning'] = false
-        saveSettings
-        return sayf(@learnOffMsg)
+        if m.authR(@reqLearningAuth)
+          @s['learning'] = false
+          saveSettings
+          m.reply(@learnOffMsg)
+        end
 
       when 'chipon'
-        return @noAuthMsg if !checkAuth(@reqChipAuth)
-        @s['chipIn'] = true
-        saveSettings
-        return sayf(@chipOnMsg)
+        if m.authR(@reqChipAuth)
+          @s['chipIn'] = true
+          saveSettings
+          m.reply(@chipOnMsg)
+        end
 
       when 'chipoff'
-        return @noAuthMsg if !checkAuth(@reqChipAuth)
-        @s['chipIn'] = false
-        saveSettings
-        return sayf(@chipOffMsg)
+        if m.authR(@reqChipAuth)
+          @s['chipIn'] = false
+          saveSettings
+          m.reply( @chipOffMsg)
+        end
 
       when 'chipprob'
-        return @noAuthMsg if !checkAuth(@reqChipAuth)
-        @s['chipInP'] = arguments(data)[1].to_f
-        saveSettings
-        return sayf("#{@chipInPMsg}#{@s['chipInP']}")
+        if m.authR(@reqChipAuth)
+          @s['chipInP'] = m.args[1].to_f
+          saveSettings
+          m.reply("#{@chipInPMsg}#{@s['chipInP']}")
+        end
 
       when 'status'
-        return @noAuthMsg if !checkAuth(@reqLearningStatusAuth)
-        return sayf("Learning: #{@s['learning']}, Chipping In: #{@s['chipIn']} at p #{@s['chipInP'].to_s}\nBrain size: #{@brain.size}")
+        if m.authR(@reqLearningStatusAuth)
+          m.reply("Learning: #{@s['learning']}, Chipping In: #{@s['chipIn']} at p #{@s['chipInP'].to_s}\nBrain size: #{@brain.size}")
+        end
 
       when 'train'
-        return @noAuthMsg if !checkAuth(@reqTrainingStatusAuth)
-        rs = trainBrainWithFile
-        saveBrain
-        return sayf(rs)
+        if m.authR(@reqTrainingStatusAuth)
+          m.reply(trainBrainWithFile)
+          saveBrain
+        end
 
       when 'about'
-        return @noAuthMsg if !checkAuth(@reqChatAuth)
-        rs = makeSentence(data)
-        return rs.length > 0 ? sayf(rs) : sayf(@noRespMsg)
+        if m.authR(@reqChatAuth)
+          rs = makeSentence(m)
+          m.reply((rs.length > @wordCount) ? rs : @noRespMsg)
+        end
+      
+      else
+        m.reply(@noModeMsg)
       end
+      
+      return nil
 
-    elsif @s['learning'] == true && data['processEvery'] == true
+    elsif @s['learning'] && m.processEvery
       # Else check if we are learning
-      learnLine(data["message"])
+      learnLine(m.message)
       @learnBufferCount += 1
 
       if @learnBufferCount > @s['learnBufferThreshold']
@@ -141,10 +149,12 @@ class MarkovChat < BotPlugin
       end
     end
 
-    if @s['chipIn'] == true
-      rs = randChipIn(data)
-      return sayf(rs) if rs != nil
+    if @s['chipIn']
+      rs = randChipIn(m)
+      m.reply(rs) if rs != nil
     end
+
+    return nil
   rescue => e
     handleError(e)
     return nil
@@ -315,17 +325,19 @@ class MarkovChat < BotPlugin
     return parsedSentence
   end
 
-  def makeSentence(data)
+  def makeSentence(m)
     # Generates sentences. Probability is not factored in yet -- it treats every chain equally right now.
     # Could use some more refactoring.
     #
     # Params:
-    # +data+:: Message hash from +IRC+
+    # +m+:: +Message+ from +IRC+
 
     terminate = false
     sentence = Array.new
     seeds = Array.new
-    seedSentence = stripWordsFromStart(data["message"], 2) # Can be improved
+    seedSentence = m.shiftWords(2)
+    puts "aaaaaaaa"
+    puts seedSentence
 
     seedSentence.split(' ').each { |word|
       seeds.push(word)
@@ -358,17 +370,17 @@ class MarkovChat < BotPlugin
     return cleanOutput(sentence.join(' '))
   end
 
-  def randChipIn(data)
+  def randChipIn(m)
     # Handles quipping.
     #
     # Params:
-    # +data+:: For passing to +makeSentence+ if needed.
+    # +m+:: For passing to +makeSentence+ if needed.
 
     if rand < @s['chipInP']
-      wittyAttempt = makeSentence(data)
+      wittyAttempt = makeSentence(m)
 
       # If we have something constructive to add
-      return wittyAttempt if wittyAttempt.length > 1 && wittyAttempt != data["message"].upcase
+      m.reply(wittyAttempt) if wittyAttempt.length > 1 && wittyAttempt.upcase != m.message.upcase
     end
 
     return nil

@@ -28,8 +28,7 @@ class IrcStatistics < BotPlugin
     @statusOnMessage = "Statistics tracking is currently on."
     @statusOffMessage = "Statistics tracking is currently off."
     @noModeMessage = "I am done looking for nothing."
-    @noSeenArgMessage = "I see nobody all the time. Give me somebody to check on."
-    @noAuthMessage = "You are not authorised for this."
+    @noSeenArgMessage = "Who?"
 
     # Required plugin stuff
     name = self.class.name
@@ -39,82 +38,67 @@ class IrcStatistics < BotPlugin
     super(name, @hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-
-    if data["processEvery"] == true && data["trigger"] == 'auth'
+  def main(m)
+    if m.processEvery && m.trigger == 'auth'
       # Not learning auth
-      return nil
-    elsif data["trigger"] == @hook[0] && data["processEvery"] != true
+
+    elsif m.processEvery != true && m.trigger == @hook[0]
       # If called using 'stats', which is hook[0]
-      mode = arguments(data)[0]
-
-      if checkAuth(@reqStatsAuth)
-          case mode
-          when 'on'
-            if checkAuth(@reqConfigAuth)
-              @s['tracking'] = true
-              saveSettings
-              return sayf(@setOnMessage)
-            else
-              return sayf(@noAuthMessage)
-            end
-          when 'off'
-            if checkAuth(@reqConfigAuth)
-              @s['tracking'] = false
-              saveSettings
-              return sayf(@setOffMessage)
-            else
-              return sayf(@noAuthMessage)
-            end
-          when 'status'
-            return sayf(isTracking)
-          when 'user'
-            return sayf(prettyStat(data, 'user', sanitize(arguments(data)[1], 'user')))
-          when 'channel'
-            return sayf(prettyStat(data, 'channel', arguments(data)[1]))
-          when 'all'
-            # Global statistics
-          when 'seen'
-            data["trigger"] = @hook[1]
-          when nil
-            return sayf(@noModeMessage)
+      if m.authR(@reqStatsAuth)
+        case m.mode
+        when 'on'
+          if m.authR(@reqConfigAuth)
+            @s['tracking'] = true
+            saveSettings
+            m.reply(@setOnMessage)
           end
-      else
-          return sayf(@noAuthMessage)
-      end
-    elsif data["trigger"] == @hook[1] && data["processEvery"] != true
-      # If called using 'seen', which is hook[1]
-      if checkAuth(@reqStatsAuth)
-        if arguments(data)[0] != nil
-          rs = prettyStat(data, 'seen', sanitize(arguments(data)[0], 'user'))
-          return sayf(rs)
+        when 'off'
+          if m.authR(@reqConfigAuth)
+            @s['tracking'] = false
+            saveSettings
+            m.reply(@setOffMessage)
+          end
+        when 'status'
+          m.reply(isTracking)
+        when 'user'
+          m.reply(prettyStat(m, 'user', sanitize(m.args[1], 'user')))
+        when 'channel'
+          m.reply(prettyStat(m, 'channel', m.args[1]))
+        when 'all'
+          # Global statistics
+        when 'seen'
+          m.trigger = @hook[1]
         else
-          return sayf(@noSeenArgMessage)
+          m.reply(@noModeMessage)
         end
-      else
-        return sayf(@noAuthMessage)
       end
 
-    elsif @s['tracking'] == true && data["processEvery"] == true
-      if silentSql("SELECT * FROM stats_channel WHERE name = '#{data["channel"]}' AND server_group = '#{data["serverGroup"]}'")[0] == nil && @s['tracking'] == true
-        # If new channel
-        recordNewChannel(data)
-      else
-        updateChannel(data)
+    elsif m.trigger == @hook[1] && m.processEvery != true
+      # If called using 'seen', which is hook[1]
+      if m.authR(@reqStatsAuth)
+        if m.args[0] != nil
+          rs = prettyStat(m, 'seen', sanitize(m.args[0], 'user'))
+          m.reply(rs)
+        else
+          m.reply(@noSeenArgMessage)
+        end
       end
 
-      if silentSql("SELECT * FROM stats_user WHERE nickname = '#{data["sender"]}' AND server_group = '#{data["serverGroup"]}'")[0] == nil
-        # If new user
-        recordNewUser(data)
+    elsif @s['tracking'] == true && m.processEvery
+      if silentSql("SELECT * FROM stats_channel WHERE name = '#{m.channel}' AND server_group = '#{m.serverGroup}'")[0] == nil && @s['tracking'] == true
+        recordNewChannel(m) # If new channel
       else
-        updateUser(data)
+        updateChannel(m)
       end
 
-      return nil
-    else
-      return nil
+      if silentSql("SELECT * FROM stats_user WHERE nickname = '#{m.sender}' AND server_group = '#{m.serverGroup}'")[0] == nil
+        recordNewUser(m) # If new user
+      else
+        updateUser(m)
+      end
     end
+
+    return nil
   rescue => e
     handleError(e)
     return nil
@@ -138,13 +122,13 @@ class IrcStatistics < BotPlugin
     return string
   end
 
-  def prettyStat(data, mode, term)
+  def prettyStat(m, mode, term)
     # Formats statistics into a return string
     return "Invalid name." if term == nil
 
     case mode
     when 'user'
-      userData = silentSql("SELECT nickname, last_message, last_message_time, last_message_channel, message_count, character_count, first_seen FROM stats_user WHERE nickname = '#{term}' AND server_group = '#{data["serverGroup"]}'")[0]
+      userData = silentSql("SELECT nickname, last_message, last_message_time, last_message_channel, message_count, character_count, first_seen FROM stats_user WHERE nickname = '#{term}' AND server_group = '#{m.serverGroup}'")[0]
 
       if userData != nil
         nickname = userData[0]
@@ -168,7 +152,7 @@ class IrcStatistics < BotPlugin
         return "User #{term} was not found. Note: This is case-sensitive."
       end
     when 'channel'
-      channelData = silentSql("SELECT name, message_count, character_count, first_seen, last_activity FROM stats_channel WHERE name='#{term}' AND server_group = '#{data["serverGroup"]}'")[0]
+      channelData = silentSql("SELECT name, message_count, character_count, first_seen, last_activity FROM stats_channel WHERE name='#{term}' AND server_group = '#{m.serverGroup}'")[0]
 
       if channelData != nil
         name = channelData[0]
@@ -190,7 +174,7 @@ class IrcStatistics < BotPlugin
         return "Channel #{term} was not found. Note: This is case-sensitive."
       end
     when 'seen'
-      userData = silentSql("SELECT nickname, last_message, last_message_time, last_message_channel FROM stats_user WHERE nickname = '#{term}' AND server_group = '#{data["serverGroup"]}'")[0]
+      userData = silentSql("SELECT nickname, last_message, last_message_time, last_message_channel FROM stats_user WHERE nickname = '#{term}' AND server_group = '#{m.serverGroup}'")[0]
 
       if userData != nil
         nickname = userData[0]
@@ -211,8 +195,8 @@ class IrcStatistics < BotPlugin
     end
   end
 
-  def recordNewUser(data)
-    escapedMessage = escapeSyntaxHard(data["message"])
+  def recordNewUser(m)
+    escapedMessage = escapeSyntaxHard(m.message)
     active = true
     messageCount = 1
     characterCount = escapedMessage.length
@@ -236,46 +220,46 @@ class IrcStatistics < BotPlugin
         first_seen
       ) VALUES (
         '#{active}',
-        '#{data["serverGroup"]}',
-        '#{data["sender"]}',
-        '#{data["hostname"]}',
-        '#{data["realname"]}',
-        '#{data["messageType"]}',
-        '#{data["time"]}',
+        '#{m.serverGroup}',
+        '#{m.sender}',
+        '#{m.hostname}',
+        '#{m.realname}',
+        '#{m.messageType}',
+        '#{m.time}',
         '#{escapedMessage}',
-        '#{data["channel"]}',
-        '#{data["time"]}',
+        '#{m.channel}',
+        '#{m.time}',
         '#{messageCount}',
         '#{characterCount}',
         '#{activityCount}',
-        '#{data["time"]}'
+        '#{m.time}'
       )
     ")
   end
 
-  def updateUser(data)
-    escapedMessage = escapeSyntaxHard(data["message"])
+  def updateUser(m)
+    escapedMessage = escapeSyntaxHard(m.message)
     characterCount = escapedMessage.length
     # Oddly, UPDATE stats_user SET ( ... ) WHERE ( ... ) breaks from the parentheses. I am bad at this
     silentSql ("
       UPDATE stats_user SET
-        hostname = '#{data["hostname"]}',
-        realname = '#{data["realname"]}',
-        last_activity = '#{data["messageType"]}',
-        last_activity_time = '#{data["time"]}',
+        hostname = '#{m.hostname}',
+        realname = '#{m.realname}',
+        last_activity = '#{m.messageType}',
+        last_activity_time = '#{m.time}',
         last_message =  '#{escapedMessage}',
-        last_message_channel = '#{data["channel"]}',
-        last_message_time = '#{data["time"]}',
+        last_message_channel = '#{m.channel}',
+        last_message_time = '#{m.time}',
         message_count = message_count + 1,
         character_count = character_count + #{characterCount},
         activity_count = activity_count + 1
       WHERE
-        server_group = '#{data["serverGroup"]}' AND nickname = '#{data["sender"]}'
+        server_group = '#{m.serverGroup}' AND nickname = '#{m.sender}'
     ")
   end
 
-  def recordNewChannel(data)
-    escapedMessage = escapeSyntaxHard(data["message"])
+  def recordNewChannel(m)
+    escapedMessage = escapeSyntaxHard(m.message)
     silentSql ("
       INSERT INTO stats_channel (
         name,
@@ -285,25 +269,25 @@ class IrcStatistics < BotPlugin
         first_seen,
         last_activity
       ) VALUES (
-        '#{data["channel"]}',
-        '#{data["serverGroup"]}',
+        '#{m.channel}',
+        '#{m.serverGroup}',
         '1',
         '#{escapedMessage.length}',
-        '#{data["time"]}',
-        '#{data["time"]}'
+        '#{m.time}',
+        '#{m.time}'
       )
     ")
   end
 
-  def updateChannel(data)
-    escapedMessage = escapeSyntaxHard(data["message"])
+  def updateChannel(m)
+    escapedMessage = escapeSyntaxHard(m.message)
     silentSql ("
       UPDATE stats_channel SET
         message_count = message_count + 1,
         character_count = character_count + #{escapedMessage.length},
-        last_activity = '#{data["time"]}'
+        last_activity = '#{m.time}'
       WHERE
-        server_group = '#{data["serverGroup"]}' AND name = '#{data["channel"]}'
+        server_group = '#{m.serverGroup}' AND name = '#{m.channel}'
     ")
   end
 

@@ -7,9 +7,6 @@ class ThreadStatus < BotPlugin
     # Authorisations
     @requiredAuth = 0
 
-    # Strings
-    @noAuthMsg = "You are not authorised for this."
-
     # Required plugin stuff
     name = self.class.name
     hook = 'threads'
@@ -18,10 +15,9 @@ class ThreadStatus < BotPlugin
     super(name, hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-
-    return authCheck(@requiredAuth) ? sayf(threadInfo) : sayf(@noAuthMsg)
+  def main(m)
+    m.reply(threadInfo) if m.authR(@requiredAuth)
+    return nil
   rescue => e
     handleError(e)
     return nil

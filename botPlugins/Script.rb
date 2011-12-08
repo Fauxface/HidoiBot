@@ -19,12 +19,8 @@ class Script < BotPlugin
     super(name, @hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-    toEval = stripTrigger(data)
-    mode = arguments(data)[0]
-
-    return eval(toEval) if authCheck(@reqScriptLevel)
+  def main(m)
+    return eval(m.stripTrigger) if m.auth(@reqScriptLevel)
   rescue => e
     handleError(e)
     return sayf(e)

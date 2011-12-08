@@ -1,10 +1,18 @@
 ﻿# Ng Guoyou
 # Wikipedia.rb
-# Simple Wikipedia scraper.
+# Simple and bad Wikipedia scraper.
 # Ported from HidoiBot1
 
 class Wikipedia < BotPlugin
   def initialize
+    # Authorisations
+    @reqAuth = 0
+
+    # Strings
+    @truncatedMessage = "Result truncated; section is too long."
+
+    @maxSectionLength = 2500
+
     # Required plugin stuff
     name = self.class.name
     hook = "wiki"
@@ -13,17 +21,20 @@ class Wikipedia < BotPlugin
     super(name, hook, processEvery, help)
   end
 
-  def main(data)
-    mode = arguments(data)[0]
-    searchterm = stripTrigger(data)
+  def main(m)
+    if m.authR(@reqAuth)
+      searchterm = m.stripTrigger
 
-    case mode
-    when 'plot'
-      searchterm = stripWordsFromStart(searchterm, 1)
-      return sayf(wiki(searchterm, 1))
-    else
-      return sayf(wiki(searchterm))
+      case m.mode
+      when 'plot'
+        searchterm = m.shiftWords(1)
+        m.reply(wiki(searchterm, 1))
+      else
+        m.reply(wiki(searchterm))
+      end
     end
+
+    return nil
   rescue => e
     handleError(e)
     return nil
@@ -31,7 +42,6 @@ class Wikipedia < BotPlugin
 
   def wiki(searchterm, *section)
     termToUse = String.new
-    maxSectionLength = 2500
     section[0] = 0 if section[0] == nil
     searchterm.gsub!(" ","_")
     searchDoc = open("http://en.wikipedia.org/w/api.php?action=opensearch&search=#{searchterm}").to_a
@@ -43,8 +53,8 @@ class Wikipedia < BotPlugin
     rs = doc.xpath("//rev").inner_text
     stripWikiMarkup(rs)
 
-    if rs.length > maxSectionLength
-      return "#{rs[0..maxSectionLength]}\nResult truncated; section is too long."
+    if rs.length > @maxSectionLength
+      return "#{rs[0..@maxSectionLength]}\n#{@truncatedMessage}"
     else
       puts rs
       return rs

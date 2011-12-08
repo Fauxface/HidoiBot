@@ -7,11 +7,7 @@ class About < BotPlugin
     # Authorisations
     @requiredPluginsAuth = 0
     @requiredAboutAuth = 0
-    
-    # Strings
-    @noPluginsAuthMsg = "You are not authorised for this."
-    @noAboutAuthMsg = "You are not authorised for this."
-    
+
     # Required plugin stuff
     name = self.class.name
     @hook = 'about'
@@ -20,18 +16,15 @@ class About < BotPlugin
     super(name, @hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-    mode = arguments(data)[0]
-
-    case mode
+  def main(m)
+    case m.mode
     when nil
-      return authCheck(@requiredAboutAuth) ? sayf(about) : sayf(@noAboutAuthMsg)
+      m.reply(about) if m.authR(@requiredAboutAuth)
     when 'plugins'
-      return authCheck(@requiredPluginsAuth) ? sayf(plugins) : sayf(@noPluginsAuthMsg)
-    else
-      return nil
+      m.reply(plugins) if m.authR(@requiredPluginsAuth)
     end
+
+    return nil
   rescue => e
     handleError(e)
     return nil
@@ -39,20 +32,18 @@ class About < BotPlugin
 
   def about
     hostOS = RbConfig::CONFIG['host_os']
-    
+
     if hostOS == 'linux-gnu'
       # Only for Unix
-      sysinfo = `uname -v`
-      sysinfo.gsub!("\n","")
-      
+      sysinfo = `uname -v`.gsub!("\n","")
+
       return "#{BOT_VERSION} running on Ruby #{RUBY_VERSION} (#{sysinfo} #{RUBY_PLATFORM}). Bot uptime: #{humaniseSeconds((Time.now - BOT_STARTUP_TIME).to_i)}"
     elsif hostOS == 'windows'
       # Only for Windows
-      sysinfo = `env`
-      sysinfo.gsub!(" ","")
-      
+      sysinfo = `env`.gsub!(" ","")
+
       return "#{bold(BOT_VERSION)} running on Ruby #{RUBY_VERSION} (#{sysinfo} #{RUBY_PLATFORM}). Bot uptime: #{humaniseSeconds((Time.now - BOT_STARTUP_TIME).to_i)}"
-    else      
+    else
       return "#{bold(BOT_VERSION)} running on Ruby #{RUBY_VERSION} #{RbConfig::CONFIG['host_os']} (#{RUBY_PLATFORM}). Bot uptime: #{humaniseSeconds((Time.now - BOT_STARTUP_TIME).to_i)}"
     end
   end
@@ -61,7 +52,7 @@ class About < BotPlugin
     rs = "Plugins loaded - Successful: #{$loadSuccess} Failed: #{$loadFailure}"
     rs += "\nLoaded plugins: #{$loadedPlugins.join(", ")}" if $loadedPlugins.size > 0
     rs += "\nFailed to load: #{$failedPlugins.join(", ")}" if $failedPlugins.size > 0
-    
+
     return rs
   end
 end

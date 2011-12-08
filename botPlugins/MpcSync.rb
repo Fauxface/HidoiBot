@@ -1,6 +1,7 @@
 # Ng Guoyou
 # MpcSync.rb
 # Syncs and listens for sync packets for Media Player Classic synchronisation
+# TODO: Move addresses, listening port into persistent settings
 
 class MpcSync < BotPlugin
   require 'net/http'
@@ -11,7 +12,7 @@ class MpcSync < BotPlugin
   def initialize
     # Settings
     # Address of MPC's Web UI
-    @mpcPlayerAddress = 'http://127.0.0.1:13579'
+    @mpcPlayerAddress = 'http://192.168.1.42:13579'
     @mpcCommandAddress = @mpcPlayerAddress + '/command.html'
     @mpcPlayingAddress = @mpcPlayerAddress + '/controls.html'
 
@@ -55,98 +56,84 @@ class MpcSync < BotPlugin
     super(name, @hook, processEvery, help)
   end
 
-  def main(data)
-    @givenLevel = data["authLevel"]
-
+  def main(m)
     # Handle alternate hooks
-    if data["trigger"] == @cockTrigger
+    case m.trigger
+    when @cockTrigger
       mode = 'cock'
-    elsif data["trigger"] == @decockTrigger
+    when @decockTrigger
       mode = 'decock'
     else
-      mode = arguments(data)[0]
+      mode = m.mode
     end
 
     # This bit handles normal hooks
     case mode
     when 'cock'
-      if authCheck(@reqCockAuth)
-        return sayf(@alreadyCockedMessage) if @cocked == true
+      if m.authR(@reqCockAuth)
+        if @cocked == true
+          # If already cocked
+          m.reply(@alreadyCockedMessage)
+          return nil
+        end
 
-        if mpcListen(data) == false
-          return sayf(@errorCockingMessage)
+        if mpcListen(m) == false
+          # If failed to cock
+          m.reply(@errorCockingMessage)
         else
           @cocked = true
-          @cockedChannel = data["channel"]
           nowPlayingInfo = nowPlaying
 
           if nowPlayingInfo == @cannotGetNpMessage
-            return sayf(@cockedMessage + ' ' + @butCannotGetNpMessage)
+            m.reply(@cockedMessage + ' ' + @butCannotGetNpMessage)
           else
-            return sayf(@cockedMessage + ' ' + nowPlayingInfo)
+            m.reply(@cockedMessage + ' ' + nowPlayingInfo)
           end
         end
-      else
-          return sayf(@notAuthorisedMessage)
       end
 
     when /(decock|uncock)/
-      if authCheck(@reqCockAuth)
+      if m.authR(@reqCockAuth)
         @cocked = false
-        return sayf(@decockedMessage)
-      else
-        return sayf(@notAuthorisedMessage)
+        m.reply(@decockedMessage)
       end
 
     when /(cockstatus|status)/
-      if authCheck(@reqCockAuth)
-        return @cocked ? sayf(@isCockedMessage) : sayf(@isNotCockedMessage)
-      else
-        return sayf(@notAuthorisedMessage)
-      end
+      m.reply(@cocked ? @isCockedMessage : @isNotCockedMessage) if m.authR(@reqCockAuth)
 
     when /(playing|np|nowplaying)/
-      return authCheck(@reqNpAuth) ? sayf(nowPlaying) : sayf(@notAuthorisedMessage)
+      m.reply(nowPlaying) if m.authR(@reqNpAuth)
 
     when 'sync'
-      if authCheck(@reqSyncAuth)
-        connectionInfo = stripTrigger(data).gsub('sync ', '').split(',')
-        syncPlayers(connectionInfo)
-        return sayf(@syncingMessage)
-      else
-        return sayf(@notAuthorisedMessage)
+      if m.authR(@reqSyncAuth)
+        connectionInfo = m.stripTrigger.gsub('sync ', '').split(',')
+        syncPlayers(connectionInfo, m)
       end
 
     else
-      return sayf(nowPlaying) if authCheck(@reqNpAuth)
+      m.reply(nowPlaying) if m.authR(@reqNpAuth)
     end
+
+    return nil
   end
 
-  def mpcListen(data)
+  def mpcListen(m)
     # So that the bot will not lock up while listening
     Thread.new do
-      begin
-        @mpcSocket = UDPSocket.open
-        @mpcSocket.bind('0.0.0.0', @mpcListenPort)
+      UDPSocket.open { |socket|
+        socket.bind('0.0.0.0', @mpcListenPort)
         puts "MpcSync: Listening on port #{@mpcListenPort}"
 
-        while @cocked == true && $shutdown == false
-          packet, sender = @mpcSocket.recvfrom(10)
+        while @cocked && !$shutdown
+          packet, sender = socket.recvfrom(10)
 
           if packet == 'GO!'
             Net::HTTP.post_form(URI.parse(@mpcCommandAddress.to_s), { 'wm_command' => '887' })
-            data["origin"].sayTo(@cockedChannel, @playingMessage)
+            m.reply(@playingMessage)
             @cocked = false
-          else
-            puts "Wrong packet received."
           end
         end
-
-        @mpcSocket.close
-      rescue
-        @cocked = false
-        @mpcSocket.close
-      end
+      }
     end
 
     return true # Successfully exited
@@ -156,12 +143,17 @@ class MpcSync < BotPlugin
     return false
   end
 
-  def syncPlayers(connectionInfo)
+  def syncPlayers(connectionInfo, m)
     puts "MpcSync: Syncing #{connectionInfo}"
 
     Thread.new do
       begin
-        sleep(@syncDelay)
+        # `for i in @syncDelay..1 do` doesn't work?
+        @syncDelay.downto(0) { |i|
+          sleep(1)
+          m.reply(i)
+        }
+
         syncStartTime = Time.now
 
         connectionInfo.each { |info|
@@ -176,7 +168,7 @@ class MpcSync < BotPlugin
           puts "MpcSync: sent 'GO!' UDP packet: #{addr}:#{port}"
         }
 
-        puts "MpcSync: Players synced with a disparity of #{(Time.now - syncStartTime).to_f * 1000}ms"
+        m.reply "Players synced with a disparity of #{decimalPlace((Time.now - syncStartTime).to_f * 1000, 3)}ms"
       rescue => e
         handleError(e)
       ensure
@@ -187,7 +179,7 @@ class MpcSync < BotPlugin
     handleError(e)
   end
 
-  def nowPlaying()
+  def nowPlaying
     doc = Nokogiri::HTML(open(@mpcPlayingAddress))
     filepath = doc.search('//td[@colspan="4"]/nobr/a[1]').inner_text
     filename = filepath.to_s.split('\\').last
@@ -196,7 +188,6 @@ class MpcSync < BotPlugin
     status = doc.xpath('//td[@colspan="4"]/../../tr[2]/td[1]').inner_text
     statusString = status.gsub(/\W/, '')
     statusString.gsub!('Status','')
-
     returnString = "#{statusString}: #{filename} [#{curTime}/#{length}]"
 
     return returnString
