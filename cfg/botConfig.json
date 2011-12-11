@@ -1,0 +1,12 @@
+{
+    "trigger": "~",
+    "botUrl": "http://my.url.here/",
+    "pingTimeout": 120,
+    "pingInterval": 300,
+    "serverConnectTimeout": 60,
+    "serverReconnectDelay": 3,
+    "maxMessageLength": 400,
+    "messageSendDelay": 0.5,
+    "useWebrick": false,
+    "webrickServerPort": 80
+}

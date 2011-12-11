@@ -1,0 +1,15 @@
+{
+    "passwords": {
+        "password1": 1,
+        "password2": 2,
+        "password3": 3
+    },
+    
+    "whitelist": [
+        "placeholder.hostname"
+    ],
+    
+    "blacklist": [
+        "placeholder.hostname"
+    ]
+}

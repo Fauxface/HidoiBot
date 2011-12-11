@@ -1,0 +1,26 @@
+{
+    "servers": [
+        {
+            "serverGroup": "Rizon",
+            "hostname": "irc.rizon.org",
+            "port": "6697",
+            "ssl": true,
+            "nickname": "HidoiBot",
+            "nickserv": true,
+            "nickservpw": "thisismypassword",
+            "defaultChannels": ["#HidoiBot"]
+        },
+        
+        {
+            "serverGroup": "SomeServer",
+            "hostname": "irc.someServer.org",
+            "port": "6697",
+            "ssl": true,
+            "nickname": "HidoiBot",
+            "nickserv": false,
+            "nickservpw": false,
+            "defaultChannels": ["#HidoiBot", "#HidoiBot2"]
+        }
+
+    ]
+}

@@ -3,12 +3,13 @@
 # HidoiBot2.rb
 # Starts bot threads and loads plugins. Also has code for console input.
 
-require 'socket'
+require 'json'
 require 'openssl'
-require 'rubygems'
+require 'socket'
 require 'timeout'
+require 'rubygems'
 
-BOT_VERSION = 'HidoiBot2 alpha'
+BOT_VERSION = 'HidoiBot2.1'
 BOT_STARTUP_TIME = Time.now
 
 def taskManager
@@ -16,17 +17,19 @@ def taskManager
   # However, if you really really really still want to do it, you can create more bot objects.
 
   # Load local config
-  load 'cfg/mainConfig.rb'
+  botSettings = loadSettings('botConfig.json')
 
   # Load server config
-  #serverDetails = readServerDetails
-  load 'cfg/ircServerConfig.rb'
+  serverSettings = loadSettings('serverConfig.json')
+
+  # Load auth config
+  authSettings = loadSettings('authConfig.json')
 
   # Load core modules
   loadCoreModules
 
   # Create bot objects
-  $bots = [IRC.new(@serverDetails)]
+  $bots = [IRC.new(serverSettings["servers"][0], botSettings, authSettings)]
   $bot1 = $bots[0] # Clean this up
 
   #for serverdetails size
@@ -48,7 +51,10 @@ def taskManager
   loadBotPlugins
 
   # WEBrick server
-  startWebrickServer if $useWebrick == true
+  startWebrickServer(botSettings) if botSettings["useWebrick"]
+
+  # For convenience and compatibility
+  $botUrl = botSettings["botUrl"]
 
   # Create bot threads
   $bot1MainThread = Thread.new{$bot1.main}
@@ -58,86 +64,108 @@ def taskManager
   $bot1MainThread.join
   $bot1TimerThread.join
 rescue => e
-  puts e
-  puts e.backtrace
+  handleError(e)
 end
 
-def startWebrickServer
+def startWebrickServer(botSettings)
+  # Starts WEBrick with public as the root directory.
+
   extend WebUI
 
   Thread.new do
-    startWebrick(:DocumentRoot => 'public', :Port => $webrickServerPort)
+    startWebrick(:DocumentRoot => 'public', :Port => botSettings["webrickServerPort"])
   end
 end
 
-def readServerDetails
-  load 'cfg/ircServerConfig.rb'
-  return serverDetails
+def loadSettings(file)
+  # Loads persistent plugin settings.
+
+  configPath = 'cfg'
+  s = File.open("#{configPath}/#{file}", "a+") { |f|
+    return JSON.parse(f.read)
+  }
+
+  return s
+rescue => e
+  handleError(e)
+  return false
+end
+
+def saveSettings(file, settings)
+  # Saves persistent plugin settings.
+
+  configPath = 'cfg'
+  File.open("#{configPath}/#{file}", "w") { |f|
+    f.puts settings.to_json
+  }
+
+  return true
+rescue => e
+  handleError(e)
+  return false
 end
 
 def loadCoreModules
+  # Loads .rb files found in core.
+
   coreFolder = "core"
-  Dir.foreach(coreFolder) { |coreFilename|
-    if File.extname(coreFilename) == ".rb"
-      puts "Loading core module: #{coreFilename}"
-      load "#{coreFolder}/#{coreFilename}"
+  Dir.foreach(coreFolder) { |filename|
+    if File.extname(filename) == ".rb"
+      puts "Loading core module: #{filename}"
+      load "#{coreFolder}/#{filename}"
     end
   }
 rescue => e
-  puts e
-  puts e.backtrace
+  handleError(e)
 end
 
 def loadBotPlugins
-  $loadSuccess = 0
-  $loadFailure = 0
-  $failedPlugins = Array.new
-  $loadedPlugins = Array.new
+  # Loads .rb files found in botPlugin.
+
+  $loadSuccess, $loadFailure = 0, 0
+  $failedPlugins, $loadedPlugins = Array.new, Array.new
 
   pluginsFolder = "botPlugins"
-  coreModulesFolder = "#{pluginsFolder}\core"
   puts "Loading bot plugins..."
 
-  Dir.foreach(pluginsFolder) { |botPluginFilename|
-    if File.extname(botPluginFilename) == ".rb"
+  Dir.foreach(pluginsFolder) { |filename|
+    if File.extname(filename) == ".rb"
       begin
-        load "#{pluginsFolder}/#{botPluginFilename}"
+        load "#{pluginsFolder}/#{filename}"
 
         # Plugin's filename should be the same as its class name
         # This is done to simplify things, as there is no easy way to extract the plugin's class name from inside the file
-        botPluginName = botPluginFilename.gsub(/\.rb$/, '')
+        botPluginName = filename.gsub(/\.rb$/, '')
         eval("$#{botPluginName} = #{botPluginName}.new()")
 
         $loadSuccess += 1
         $loadedPlugins.push(botPluginName)
       rescue => e
         $loadFailure += 1
-        $failedPlugins.push(botPluginFilename)
-        puts "#{botPluginFilename} failed to load:"
-        puts e
-        puts e.backtrace
+        $failedPlugins.push(filename)
+        puts "#{filename} failed to load:"
+        handleError(e)
       rescue SyntaxError => e
         $loadFailure += 1
-        $failedPlugins.push(botPluginFilename)
-        puts "#{botPluginFilename} failed to load:"
-        puts e
-        puts e.backtrace
+        $failedPlugins.push(filename)
+        puts "#{filename} failed to load:"
+        handleError(e)
       end
     else
-      if botPluginFilename != ".." && botPluginFilename != "." && botPluginFilename != 'inactive'
-        puts "#{botPluginFilename} is not a recognised bot plugin file."
-      end
+      puts "#{filename} is not a recognised bot plugin file." if !(/(\.|\.\.|inactive|settings)/ === filename)
     end
   }
+
   puts "Plugins loaded - Successful: #{$loadSuccess} Failed: #{$loadFailure}"
   puts "Failed to load:\n#{$failedPlugins.join("\n")}" if $failedPlugins.size > 0
 rescue => e
-  puts e
-  puts e.backtrace
+  handleError(e)
 end
 
 def consoleInput
-  # To use this, type '/<$botName.method>' in the console
+  # Evaluates console input.
+  # Usage: type '/<$botName.method>' in the console
+
   if @console != true
     Thread.new do
       loop do
@@ -159,14 +187,18 @@ def consoleInput
     end
   end
 rescue => e
-  puts e
-  puts e.backtrace
+  handleError(e)
   retry
 end
 
 def reload
   loadCoreModules
   loadBotPlugins
+end
+
+def handleError(e)
+  puts e
+  puts e.backtrace
 end
 
 consoleInput

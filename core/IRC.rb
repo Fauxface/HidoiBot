@@ -9,69 +9,77 @@
 #   Plugin mapping
 #   Ping checks
 #
-# TODO: Improve loading of settings, perhaps using JSON
+# TODO: Whitelist/Blacklist, better authentication, better max message length, channel info
 
 class IRC
-  # *botInfo is optional for reload
-  def initialize(*botInfo)
-    puts 'Starting bot...'
+  attr_accessor :hostname
+  attr_accessor :serverGroup
+  attr_accessor :port
+  attr_accessor :ssl
+  attr_accessor :defaultChannels
+  attr_accessor :defaultNickname
+  attr_accessor :nickname
+  attr_accessor :nickserv
+  attr_accessor :connected
+
+  def initialize(serverInfo, botInfo, authInfo)
+    puts "#{serverInfo["serverGroup"]}: Starting bot..."
     extend Timer
 
-    # TODO: Ensure $bots array contains IRC objects, so plugins can map for every IRC object.
+    timerInitialize
+    coreMapping
 
-    # So reload doesn't reinitialize bad stuff
-    if @connected != true
-      timerInitialize
-      configFile = 'cfg/botConfig.rb'
-      load configFile
-      botSettings # This implements the shoddy settings loading in configFile
-      coreMapping
-      botVariables
-      serverSettings(botInfo[0])
-      doDefaultAuth
-      connect
-    end
+    # Setup attr_accessors
+    setupBot(botInfo)
+    setupServer(serverInfo)
+    setupAuth(authInfo)
+
+    connect
   end
 
-  def botVariables
+  def setupBot(botInfo)
     # Initialises variables related to bot operation.
+    #
+    # Params:
+    # +botInfo+:: A +Hash+ defined in cfg/botInfo.json containing bot settigns.
+
+    # Plugin mapping
     @triggerMap = Hash.new
     @pluginMapping = Hash.new
     @pluginMapping["processEvery"] = Array.new
     @pluginHelp = Hash.new
+
+    # Bot variables
+    @trigger = botInfo["trigger"]
+    @pingTimeout = botInfo["pingTimeout"]
+    @pingInterval = botInfo["pingInterval"]
+    @serverConnectTimeout = botInfo["serverConnectTimeout"]
+    @serverReconnectDelay = botInfo["serverReconnectDelay"]
+    @maxMessageLength = botInfo["maxMessageLength"] # TODO: Calculate this dynamically
+    @messageSendDelay = botInfo["messageSendDelay"]
+    # @channelInfo = Hash.new
     $shutdown = false
   end
 
-  def serverSettings(botInfo)
+  def setupServer(serverInfo)
     # Initialises variables related to server connection.
     #
     # Params:
-    # +botInfo+:: A +Hash+ defined in cfg/serverInfo.rb containing bot and server information.
+    # +serverInfo+:: A +Hash+ defined in cfg/serverInfo.rb containing bot and server information.
 
-    @serverGroup = botInfo["serverGroup"]
-    @hostname = botInfo["hostname"]
-    @port = botInfo["port"]
-    @ssl = botInfo["ssl"]
-    @defaultChannels = botInfo["defaultChannels"]
-    @defaultNickname = botInfo["nickname"]
-    @nickname = botInfo["nickname"]
-    @nickserv = botInfo["nickserv"]
-    @nickservPassword = botInfo["nickservpw"]
-  end
-
-  def getBotInformation
-    # Returns a hash with bot information.
-    return {
-      "hostname" => @hostname,
-      "port" => @port,
-      "ssl" => @ssl,
-      "nickname" => @nickname,
-      "nickserv" => @nickserv
-    }
+    @serverGroup = serverInfo["serverGroup"]
+    @hostname = serverInfo["hostname"]
+    @port = serverInfo["port"]
+    @ssl = serverInfo["ssl"]
+    @defaultChannels = serverInfo["defaultChannels"]
+    @defaultNickname = serverInfo["nickname"]
+    @nickname = serverInfo["nickname"]
+    @nickserv = serverInfo["nickserv"]
+    @nickservPassword = serverInfo["nickservpw"]
   end
 
   def coreMapping
-    # Pre-defined/Non-plugin triggers
+    # Hardcoded pre-defined/non-plugin triggers
     # Try not to use this for mapping
 
     # "trigger" => ['eval(this)', auth level],
@@ -126,11 +134,7 @@ class IRC
     hook = message.split(' ')[0]
 
     if hook != nil
-      if @pluginHelp[hook] != nil
-        say @pluginHelp[hook]
-      else
-        say "No help was found."
-      end
+      say @pluginHelp[hook] != nil ? @pluginHelp[hook] : "No help was found."
     else
       say "Triggers: #{@pluginMapping.keys.join(', ').gsub!('processEvery, ', '')}, #{@coreMapping.keys.join(', ')}."
       say "Use #{@trigger}help <trigger> for help on a specific trigger."
@@ -145,19 +149,16 @@ class IRC
 
   def connect
     # Connects to a server. Details of the server are variables in serverDetails and can be found in /cfg
-    if @ssl == false
-      timeout(@serverConnectTimeout) do
-        @connection = TCPSocket.new(@hostname, @port)
-      end
-      puts "Not using SSL."
-    elsif @ssl == true
-      timeout(@serverConnectTimeout) do
+    timeout(@serverConnectTimeout) do
+      if @ssl
+        puts "#{@serverGroup}: Using SSL."
         @connection = OpenSSL::SSL::SSLSocket.new(TCPSocket.new(@hostname, @port))
         @connection.connect
+      else
+        # Default to no SSL usage
+        puts "#{@serverGroup}: Not using SSL."
+        @connection = TCPSocket.new(@hostname, @port)
       end
-      puts "Using SSL."
-    else
-      raise "connectError: SSL usage not defined"
     end
 
     @nickname = @defaultNickname
@@ -167,7 +168,7 @@ class IRC
     @connected = true
   rescue => e
     puts "Unable to connect to server: #{e}\nRetrying..."
-    sleep(1)
+    sleep(@serverReconnectDelay)
     retry
   end
 
@@ -212,21 +213,21 @@ class IRC
 
   def reconnect
     # Reconnects to the server.
-    puts "Reconnecting..."
+    puts "#{@serverGroup}: Reconnecting..."
     disconnect('Reconnecting')
     connect
   end
 
   def restart
     # Restarts the bot.
-    puts "Restarting..."
+    puts "#{@serverGroup}: Restarting..."
     disconnect('Restarting')
     exec("ruby HidoiBot2.rb")
   end
 
   def quit
     # Shuts down the bot.
-    puts "Quitting..."
+    puts "#{@serverGroup}: Quitting..."
     disconnect('Quitting')
     $shutdown = true
     Process.exit
@@ -236,7 +237,6 @@ class IRC
     # Reload plugins and core modules.
     @pluginMapping["processEvery"] = Array.new
     super
-    initialize
     rs = "Reloaded."
     rs += " Failed to load #{$failedPlugins.size} plugins:\n#{$failedPlugins.join(", ")}\nCheck console for details." if $failedPlugins.size > 0
     say rs
@@ -350,12 +350,7 @@ class IRC
       handlePong(m)
     when 'PRIVMSG'
       # Handle private messages
-      if m.channel == @nickname
-        @replyChannel = m.sender
-      else
-        @replyChannel = m.channel
-      end
-
+      @replyChannel = ((m.channel == @nickname) ? m.sender : m.channel)
       triggerDetection(m)
       handleProcessEvery(m)
       ctcpDetection(m)
@@ -472,23 +467,21 @@ class IRC
 
   def checkCoreTriggerMap(m, trigger)
     # Core triggers, checks which core trigger was called, with authorisation check
+    # These are hardcoded in.
     #
     # Params:
     # +m+:: +Message+ passed along, used to obtain the hostname.
     # +trigger+:: Trigger to be checked to see if it is in the core trigger mapping.
 
-    hostname = m.hostname
-
-    if @coreMapping[trigger] != nil
-      if @coreMapping[trigger][0] != nil && checkAuth(hostname) >= @coreMapping[trigger][1]
+    if @coreMapping[trigger] != nil && @coreMapping[trigger][0] != nil && @coreMapping[trigger][1] != nil
+      if checkAuth(m.hostname) >= @coreMapping[trigger][1]
         return @coreMapping[trigger][0]
-      elsif @coreMapping[trigger][0] != nil && checkAuth(hostname) < @coreMapping[trigger][1]
-        say "You are not authorised for that."
-        return nil
+      elsif checkAuth(m.hostname) < @coreMapping[trigger][1]
+        say "You are not authorised for this."
       end
-    else
-      return nil
     end
+
+    return nil
   end
 
   def checkTriggerMap(trigger)
@@ -502,9 +495,9 @@ class IRC
         "moduleName" => @pluginMapping[trigger],
         "takesArgument" => @pluginMapping["takesArgument"]
       }
-    else
-      return nil
     end
+
+    return nil
   end
 
   def runPlugin(plugin, m)
@@ -603,6 +596,7 @@ class IRC
   # HidoiAuth(tm), "ENTERPRISE QUALITY"
   # Authentication uses a user's hostname
   # This is extremely bad security.
+
   def auth(m)
     # Checks and authenticates a hostname if a correct password is given.
     # Will reply indicating success or failure.
@@ -643,18 +637,18 @@ class IRC
     # Params:
     # +hostname+:: A hostname to check.
 
-    if @authUsers[hostname]
-      return @authUsers[hostname]
-    else
-      # A Level 0 is an unauth-ed, weak and sometimes Moe<3 user, just like Saten~
-      return 0
-    end
+    # A Level 0 is an unauth-ed, weak and sometimes Moe<3 user, just like Saten~
+    return @authUsers[hostname] ? @authUsers[hostname] : 0
   end
 
-  def doDefaultAuth
+  def setupAuth(authInfo)
     # Does auths described in cfg.
-    load 'cfg/authConfig.rb'
-    passwordList
+    # TODO: Whitelist and blacklist.
+    #
+    # Params:
+    # +authInfo+:: A +Hash+ of passwords and whitelisted/blacklisted hostnames defined in cfg/authConfig.json
+
+    @passwordList = authInfo["passwords"]
     @authUsers = Hash.new
   end
 
