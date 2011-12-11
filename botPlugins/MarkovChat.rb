@@ -82,7 +82,14 @@ class MarkovChat < BotPlugin
     elsif !m.processEvery && @hook.include?(m.trigger)
       # If called using trigger
       # If called using haiku, set mode to haiku
-      mode = (!m.processEvery && m.trigger == @haikuTrigger ? 'haiku' : m.mode)
+      if !m.processEvery && m.trigger == @haikuTrigger
+        mode = 'haiku'
+      elsif !m.processEvery && m.mode == 'haiku'
+        mode = m.mode
+        m.message = m.stripTrigger
+      else
+        mode = m.mode
+      end
 
       # Modes
       case mode
@@ -404,12 +411,7 @@ class MarkovChat < BotPlugin
     lineSyllableCount = 0
     line = 0
     tries = 0
-
-    if m.message.split(' ').size >= 2
-      seedSentence = m.shiftWords(2)
-    else
-      seedSentence = m.shiftWords(1)
-    end
+    seedSentence = m.shiftWords(1)
 
     if seedSentence.size > 0
       # Get a valid seed word if provided with a seed sentence
@@ -432,6 +434,7 @@ class MarkovChat < BotPlugin
     timeout(15) do
       # Protection against infinite loops due to bad code
       while !terminate
+        # So we don't alter the actual brain
         curSeedOptions = @brain[seed]
         newSeed = false
 
@@ -452,14 +455,14 @@ class MarkovChat < BotPlugin
                 next seed if @brain[seed] != nil && countSyllables(seed) <= 5 && seed != oldSeed
               }[0]
 
-              seed = @brain.keys.sample if seed == oldSeed
+              seed = @brain.keys.sample if seed == oldSeed # New random seed if we cannot find an alternative
             else
               # Else, get a random word
               word = curSeedOptions.keys.sample
             end
 
             if word != nil
-               # Remove first word
+              # Remove first word
               if word.split(' ').size > 1
                 originalWord = word
                 word = word.split(' ').drop(1).join(' ')
@@ -475,36 +478,33 @@ class MarkovChat < BotPlugin
                 newSeed = true
                 sentence.push(word)
                 lineSyllableCount += syllables
-
-              elsif curSeedOptions == nil
-                # So this won't foul up the next conditional
-                word = nil
-
-              elsif curSeedOptions.keys.size == 1
-                # !-Hack-! For some reason .delete doesn't seem to work sometimes
-                curSeedOptions = nil
-
               else
                 # Remove bad chain from options
-                curSeedOptions.delete(originalWord)
+                if curSeedOptions.keys.size == 1
+                  # !-Hack-! For some reason .delete doesn't seem to work sometimes
+                  curSeedOptions = nil
+                else
+                  curSeedOptions.delete(originalWord)
+                end
               end
+            end
 
-              # Check for structure
-              if (lineSyllableCount == 4 && line != 1) ||
-                 (lineSyllableCount == 6 && line == 1)
-                # We do this because monosyllabic words are impossible in a word chain of length two
-                seed = ["and", "so", "then"].sort_by{ rand }.first # Pick random filler
-                newSeed = true
-                sentence.push(seed).push("\n")
-                lineSyllableCount = 0
-                line += 1
-              elsif (lineSyllableCount == 5 && line != 1) ||
-                    (lineSyllableCount == 7 && line == 1)
-                # Line has hit its quota
-                sentence.push("\n")
-                lineSyllableCount = 0
-                line += 1
-              end
+            # Check for structure
+            if (lineSyllableCount == 4 && line != 1) ||
+               (lineSyllableCount == 6 && line == 1)
+              # We do this because monosyllabic words are impossible in a word chain of length two
+              #seed = ["and", "so", "then", "but"].sort_by{ rand }.first # Pick random filler
+              seed = @brain.keys.sample # Pick random new seed
+              newSeed = true
+              sentence.push(seed).push("\n")
+              lineSyllableCount = 0
+              line += 1
+            elsif (lineSyllableCount == 5 && line != 1) ||
+                  (lineSyllableCount == 7 && line == 1)
+              # Line has hit its quota
+              sentence.push("\n")
+              lineSyllableCount = 0
+              line += 1
             end
           end
         end
