@@ -75,8 +75,6 @@ class MarkovChat < BotPlugin
   end
 
   def main(m)
-
-
     if m.processEvery && @hook.include?(m.trigger)
       # Not learning triggers
       return nil
