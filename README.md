@@ -22,7 +22,6 @@ Pull the source and install the following stuff:
 
 * Ruby - tested on version 1.9.2
 * `rubygems` - this should come with a Ruby install
-* `json` or `json/pure` - `gem install json` or `gem install json_pure`
 
 ### Pretty much required:
 
@@ -73,7 +72,8 @@ Usage
 ### To authenticate:
 > `auth <password>`
 >
-> Passwords and authorisation levels are found in `cfg/authConfig.rb` <br>
+> Passwords and authorisation levels are found in `cfg/authConfig.json` <br>
+> Format: "password": level
 > Default passwords: password1, password2, password3
     
 ### Bot console:
