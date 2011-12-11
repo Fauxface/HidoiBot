@@ -4,15 +4,7 @@
 # Basic BotPlugin class. Contains common methods and initialisation mapping code.
 
 class BotPlugin
-  begin
-    require 'json'
-  rescue LoadError
-    begin
-      require 'json_pure'
-    rescue LoadError
-      puts '"json" and "json_pure" gems not found. Some plugins might not work correctly.'
-    end
-  end
+  require 'json'
 
   def initialize(botModuleName, hook, processEvery, *help)
     # Initialises plugins and maps their hooks so they can be called using commands.
@@ -20,6 +12,12 @@ class BotPlugin
     # or other method that works
     #
     # TODO: Make a doBotsMapping method, so support for multiple servers is handled
+    #
+    # Params:
+    # +botModuleName+:: Name of the plugin (and the class, as well -- self.name).
+    # +hook+:: Trigger(s) to map, can be a +String+ or an +Array+ of +Strings+.
+    # +processEvery+:: +Boolean+. Whether every PRIVMSG received is passed to this plugin
+    # +help+:: Optional +String+ containing help and usage information. Used for the help command.
 
     if hook.class == Array && hook.size > 1
       # If multiple hooks
@@ -272,7 +270,9 @@ class BotPlugin
   def loadSettings
     # Loads persistent plugin settings.
     configPath = 'botPlugins/settings/' # Doesn't work as a class/instance variable?
-    @s = JSON.parse(open("#{configPath}/#{@settingsFile}", "a+").read)
+    File.open("#{configPath}/#{@settingsFile}", "a+") { |file|
+      @s = JSON.parse(file.read)
+    }
   rescue => e
     handleError(e)
   end

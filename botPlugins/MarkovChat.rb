@@ -7,7 +7,6 @@
 class MarkovChat < BotPlugin
   def initialize
     require 'json'
-    #require 'json/pure'
     require 'open-uri'
 
     # Default Persistent Settings
@@ -336,8 +335,7 @@ class MarkovChat < BotPlugin
     sentence = Array.new
     seeds = Array.new
     seedSentence = m.shiftWords(2)
-    puts "aaaaaaaa"
-    puts seedSentence
+    #puts "Using #{seedSentence} as seed"
 
     seedSentence.split(' ').each { |word|
       seeds.push(word)

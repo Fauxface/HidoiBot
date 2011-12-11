@@ -4,7 +4,6 @@
 
 class RottenTomatoes < BotPlugin
   require 'json'
-  require 'json/pure'
   require 'open-uri'
 
   def initialize
@@ -24,21 +23,6 @@ class RottenTomatoes < BotPlugin
     @hook = "rotten"
     processEvery = false
     help = "Usage: #{@hook} *(rating) <term>\nFunction: Returns movie information from Rotten Tomatoes."
-
-    begin
-      # Check gem availability
-      require 'json'
-      gem "json"
-      super(name, @hook, processEvery, help)
-    rescue GEM::LoadError
-      begin
-        require 'json/pure'
-        gem "json/pure"
-      rescue GEM::LoadError
-        puts "botPlugin RottenTomatoes load error: gem json is not installed."
-        puts "To install, type 'gem install json' or 'gem install json_pure'"
-      end
-    end
   end
 
   def main(m)
