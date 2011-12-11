@@ -58,11 +58,9 @@ def taskManager
 
   # Create bot threads
   $bot1MainThread = Thread.new{$bot1.main}
-  $bot1TimerThread = Thread.new{$bot1.timer}
 
   # Start bot threads
   $bot1MainThread.join
-  $bot1TimerThread.join
 rescue => e
   handleError(e)
 end

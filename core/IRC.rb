@@ -21,15 +21,13 @@ class IRC
   attr_accessor :nickname
   attr_accessor :nickserv
   attr_accessor :connected
+  attr_accessor :timer
 
   def initialize(serverInfo, botInfo, authInfo)
     puts "#{serverInfo["serverGroup"]}: Starting bot..."
-    extend Timer
+    coreMapping # Core trigger mapping
 
-    timerInitialize
-    coreMapping
-
-    # Setup attr_accessors
+    # Setup attr_accessors/variables
     setupBot(botInfo)
     setupServer(serverInfo)
     setupAuth(authInfo)
@@ -59,6 +57,9 @@ class IRC
     @messageSendDelay = botInfo["messageSendDelay"]
     # @channelInfo = Hash.new
     $shutdown = false
+
+    # Instance timer
+    @timer = Timer.new
   end
 
   def setupServer(serverInfo)
@@ -247,18 +248,18 @@ class IRC
   def pingServer
     # Pings the server.
     send "PING #{Time.now.to_f}"
-    addEvent(@hostname, 'pingTimeout', Time.now + @pingTimeout, 'single', 0)
+    @timer.addEvent(@hostname, 'pingTimeout', Time.now + @pingTimeout, 'single', 0, self)
   end
 
   def startPingChecks
     # Sets up a recurring +Event+ for ping checks.
-    addEvent(@hostname, 'pingCheck', Time.now, 'recurring', @pingInterval)
+    @timer.addEvent(@hostname, 'pingCheck', Time.now, 'recurring', @pingInterval, self)
   end
 
   def stopPingChecks
     # Stops ping checks. Used when disconnecting.
-    deleteEventType('pingCheck')
-    deleteEventType('pingTimeout')
+    @timer.deleteEventType('pingCheck')
+    @timer.deleteEventType('pingTimeout')
   end
 
   def main
@@ -387,7 +388,7 @@ class IRC
     # Params:
     # +m+:: A +Message+ of type PONG.
 
-    deleteEventType('pingTimeout')
+    @timer.deleteEventType('pingTimeout')
     @latencyms = (Time.now.to_f - m.message.to_f) * 1000
   end
 
