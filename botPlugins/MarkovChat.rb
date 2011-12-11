@@ -51,6 +51,7 @@ class MarkovChat < BotPlugin
     @reqChatAuth = 0
     @reqChipAuth = 3
     @reqTrainingStatusAuth = 3
+    @reqHaikuAuth = 0
 
     # Strings
     @learnOnMsg = "Learning is now on."
@@ -61,23 +62,32 @@ class MarkovChat < BotPlugin
     @noRespMsg = "Derp."
     @noModeMsg = "Invalid mode."
 
+    # Triggers
+    @chatTrigger = 'chat'
+    @haikuTrigger = 'haiku'
+
     # Required plugin stuff
     name = self.class.name
-    @hook = 'chat'
+    @hook = [@chatTrigger, @haikuTrigger]
     processEvery = @s['learning']
-    help = "Usage: #{@hook} (about <word(s)>|on|off|chipon|chipoff|chipprob <p>|status)\nFunction: Uses a simple Markov chain implementation to simulate sentience. Use about <word(s)> to chat."
+    help = "Usage: #{@haikuTrigger} or #{@chatTrigger} (about <word(s)>|on|off|chipon|chipoff|chipprob <p>|status|haiku)\nFunction: Uses a simple Markov chain implementation to simulate sentience. Use about <word(s)> to chat."
     super(name, @hook, processEvery, help)
   end
 
-  def main(m)  
-    if m.processEvery && m.trigger == @hook
+  def main(m)
+
+
+    if m.processEvery && @hook.include?(m.trigger)
       # Not learning triggers
       return nil
 
-    elsif m.processEvery != true && m.trigger == @hook
+    elsif !m.processEvery && @hook.include?(m.trigger)
       # If called using trigger
+      # If called using haiku, set mode to haiku
+      mode = (!m.processEvery && m.trigger == @haikuTrigger ? 'haiku' : m.mode)
+
       # Modes
-      case m.mode
+      case mode
       when 'learnon'
         if m.authR(@reqLearningAuth)
           @s['learning'] = true
@@ -129,11 +139,17 @@ class MarkovChat < BotPlugin
           rs = makeSentence(m)
           m.reply((rs.length > @wordCount) ? rs : @noRespMsg)
         end
-      
+
+      when 'haiku'
+        if m.authR(@reqHaikuAuth)
+          rs = makeHaiku(m)
+          m.reply((rs.length > @wordCount) ? rs : @noRespMsg)
+        end
+
       else
         m.reply(@noModeMsg)
       end
-      
+
       return nil
 
     elsif @s['learning'] && m.processEvery
@@ -315,7 +331,7 @@ class MarkovChat < BotPlugin
     parsedSentence = parsedSentence.gsub('"', '')
     parsedSentence = parsedSentence.lstrip.rstrip # Trailing/Leading whitespace
 
-    if @capitalise == true
+    if @capitalise
       parsedSentence = parsedSentence.upcase # Capitalises everything
     else
       parsedSentence[0] = parsedSentence[0].upcase # Capitalises only the first letter
@@ -335,20 +351,25 @@ class MarkovChat < BotPlugin
     sentence = Array.new
     seeds = Array.new
     seedSentence = m.shiftWords(2)
-    #puts "Using #{seedSentence} as seed"
 
-    seedSentence.split(' ').each { |word|
-      seeds.push(word)
-    }
+    if seedSentence.size > 0
+      # Get a valid seed word if provided with a seed sentence
+      seedSentence.split(' ').each { |word|
+        seeds.push(word)
+      }
 
-    seed = seeds.each { |seed|
-        next if @brain[seed] != nil
-    }[0]
+      seed = seeds.each { |seed|
+        next seed if @brain[seed] != nil
+      }[0]
+    else
+      # Random seed if not given any
+      seed = @brain.keys.sample
+    end
 
     # Start sentence off with the seed, since we're going to drop the first words later
     sentence.push(seed)
 
-    while terminate == false && @brain[seed] != nil
+    while !terminate && @brain[seed] != nil
       # Probablity goes here, replace sample
       word = (@brain[seed].keys).sample
 
@@ -366,6 +387,166 @@ class MarkovChat < BotPlugin
     end
 
     return cleanOutput(sentence.join(' '))
+  end
+
+  def makeHaiku(m)
+    # 5-7-5
+    # HidoiBot's haiku
+    # Terrible and horrible
+    # This is a todo.
+    #
+    # Seriously, this is bad.
+    #
+    # Params:
+    # +m+:: A +Message+ object.
+
+    terminate = false
+    sentence = Array.new
+    seeds = Array.new
+    lineSyllableCount = 0
+    line = 0
+    tries = 0
+
+    if m.message.split(' ').size >= 2
+      seedSentence = m.shiftWords(2)
+    else
+      seedSentence = m.shiftWords(1)
+    end
+
+    if seedSentence.size > 0
+      # Get a valid seed word if provided with a seed sentence
+      seedSentence.split(' ').each { |word|
+        seeds.push(word)
+      }
+
+      seed = seeds.each { |seed|
+        next seed if @brain[seed] != nil && countSyllables(seed) <= 5
+      }[0]
+    else
+      # Random seed if not given any
+      seed = @brain.keys.sample
+    end
+
+    # Start sentence off with the seed, since we're going to drop the first words later
+    sentence.push(seed)
+    lineSyllableCount += countSyllables(seed)
+
+    timeout(15) do
+      # Protection against infinite loops due to bad code
+      while !terminate
+        curSeedOptions = @brain[seed]
+        newSeed = false
+
+        while !newSeed && !terminate
+          if sentence.size > 19 || line > 2
+            # 5 + 7 + 5 + 2x '\n' == 19
+            # Line count starts from 0
+            terminate = true
+          else
+            if curSeedOptions == nil
+              # Exhausted our current options, get a new seed and its options
+              word = nil
+              newSeed = true
+              oldSeed = seed
+
+              # Try to get a new seed from its current options
+              seed = seeds.each { |seed|
+                next seed if @brain[seed] != nil && countSyllables(seed) <= 5 && seed != oldSeed
+              }[0]
+
+              seed = @brain.keys.sample if seed == oldSeed
+            else
+              # Else, get a random word
+              word = curSeedOptions.keys.sample
+            end
+
+            if word != nil
+               # Remove first word
+              if word.split(' ').size > 1
+                originalWord = word
+                word = word.split(' ').drop(1).join(' ')
+              end
+
+              syllables = countSyllablesInSentence(word)
+
+              # Add it to our haiku
+              if (syllables + lineSyllableCount <= 5 && line != 1) ||
+                 (syllables + lineSyllableCount <= 7 && line == 1)
+                # If valid addition
+                seed = word.split(' ').last # New seed
+                newSeed = true
+                sentence.push(word)
+                lineSyllableCount += syllables
+
+              elsif curSeedOptions == nil
+                # So this won't foul up the next conditional
+                word = nil
+
+              elsif curSeedOptions.keys.size == 1
+                # !-Hack-! For some reason .delete doesn't seem to work sometimes
+                curSeedOptions = nil
+
+              else
+                # Remove bad chain from options
+                curSeedOptions.delete(originalWord)
+              end
+
+              # Check for structure
+              if (lineSyllableCount == 4 && line != 1) ||
+                 (lineSyllableCount == 6 && line == 1)
+                # We do this because monosyllabic words are impossible in a word chain of length two
+                seed = ["and", "so", "then"].sort_by{ rand }.first # Pick random filler
+                newSeed = true
+                sentence.push(seed).push("\n")
+                lineSyllableCount = 0
+                line += 1
+              elsif (lineSyllableCount == 5 && line != 1) ||
+                    (lineSyllableCount == 7 && line == 1)
+                # Line has hit its quota
+                sentence.push("\n")
+                lineSyllableCount = 0
+                line += 1
+              end
+            end
+          end
+        end
+      end
+    end
+
+    return cleanOutput(sentence.join(' ').gsub(" \n ", "\n").gsub(/  +/,' '))
+  end
+
+  def countSyllables(text)
+    # Counts and returns the number of syllables in text, a word
+    # Taken from http://stackoverflow.com/questions/1271918/ruby-count-syllables
+    #
+    # Params:
+    # +text+:: A word.
+
+    word = text.downcase
+    return 1 if word.length <= 3
+    word.sub!(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '')
+    word.sub!(/^y/, '')
+    return word.scan(/[aeiouy]{1,2}/).size
+  end
+
+  def countSyllablesInSentence(text)
+    # Counts and returns the number of syllables in text, a sentence
+    # Adapted from http://stackoverflow.com/questions/1271918/ruby-count-syllables
+    #
+    # Params:
+    # +text+:: A sentence.
+
+    sentence = text
+    sentence.gsub!(/\W+/, ' ') # Strip punctuation
+    words = sentence.split(' ')
+    count = 0
+
+    words.each { |word|
+      count += countSyllables(word)
+    }
+
+    return count
   end
 
   def randChipIn(m)
