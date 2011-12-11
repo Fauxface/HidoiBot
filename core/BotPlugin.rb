@@ -166,7 +166,7 @@ class BotPlugin
 
   # Alias for the AMERICANS
   alias :color :colour
-  alias :isColor? :color
+  alias :isColor? :isColour?
   alias :reverseColor :reverseColour
 
   def clearCodes
