@@ -63,7 +63,7 @@ class WolframAlpha < BotPlugin
       if numberOfRelatedExamples > 0
         # If we have no result but at least one related example, try the first on the list
         searchterm = indvRelatedExamples[0]['input']
-        rs = wolfram(searchterm, limit + 1)
+        rs = wolfram(searchterm, limit + 1) 
       else
         rs = @noResultsMsg
       end
@@ -73,7 +73,8 @@ class WolframAlpha < BotPlugin
 
     return rs
   rescue => e
-    return sayf(@noResultsMsg)
+    m.reply(@noResultsMsg)
+    return nil
   end
 
   def formatWolframInput(searchterm)
@@ -132,6 +133,6 @@ class WolframAlpha < BotPlugin
     return rs
   rescue => e
     handleError(e)
-    return sayf(@noResultsMsg)
+    return @noResultsMsg
   end
 end

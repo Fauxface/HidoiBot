@@ -6,7 +6,6 @@
 # This includes:
 #    escapeSyntax(string), escapeSyntaxHard(string)
 #    handleError(error)
-#    sayf(string) <= see m.reply, m.replyTo
 #    bold(string), italics(string), underline(string)
 #    colour(string, textColour, highlightColour), reverseColour(string)
 #    decimalPlace(int, places)
@@ -100,7 +99,6 @@ class Ping < BotPlugin
     #   You can use any method found in class IRC as well:
     #   m.origin.method
     #
-    # The bot will eval anything returned, but this should not be necessary.
     # Best to return nil if there is no visible output, ie "return nil"
     #
     # Long strings can be said without issue
@@ -110,8 +108,6 @@ class Ping < BotPlugin
 
     # Alternatively, do
     # m.reply(someString) if m.authR(requiredLevel)
-    # or
-    # return sayf(someString)
 
     return nil
   rescue => e

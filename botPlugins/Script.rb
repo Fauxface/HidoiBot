@@ -8,9 +8,6 @@ class Script < BotPlugin
     # Authorisations
     @reqScriptLevel = 3
 
-    # Strings
-    @noAuthMessage = 'You are not authorised for this.'
-
     # Required plugin stuff
     name = self.class.name
     @hook = 'script'
@@ -20,9 +17,11 @@ class Script < BotPlugin
   end
 
   def main(m)
-    return eval(m.stripTrigger) if m.auth(@reqScriptLevel)
+    m.reply eval(m.stripTrigger) if m.authR(@reqScriptLevel)
+    return nil
   rescue => e
     handleError(e)
-    return sayf(e)
+    m.reply(e)
+    return nil
   end
 end

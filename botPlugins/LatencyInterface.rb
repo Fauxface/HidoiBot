@@ -23,7 +23,7 @@ class LatencyInterface < BotPlugin
         m.reply('Latency refreshed.')
       end
     elsif m.authR(@reqLatencyAuth)
-      return 'say "#{@latencyms.to_i}ms"' # Has to use IRC object's own @latencyms
+      m.origin.say("#{m.origin.latencyms.to_i}ms")
     end
 
     return nil

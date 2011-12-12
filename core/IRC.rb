@@ -22,6 +22,7 @@ class IRC
   attr_accessor :nickserv
   attr_accessor :connected
   attr_accessor :timer
+  attr_accessor :latencyms
 
   def initialize(serverInfo, botInfo, authInfo)
     puts "#{serverInfo["serverGroup"]}: Starting bot..."
@@ -502,14 +503,13 @@ class IRC
   end
 
   def runPlugin(plugin, m)
-    # Runs plugin and passes +Message+ m to it.
+    # Calls main method of plugin and passes +Message+ m to it.
     #
     # Params:
     # +plugin+:: The plugin to run.
     # +m+:: A +Message+.
 
-    returnData = $plugins[plugin].main(m)
-    eval(returnData) if returnData != nil
+    $plugins[plugin].main(m)
   rescue SyntaxError => e
     say "#{plugin}: Syntax error: #{e}"
     handleError(e)

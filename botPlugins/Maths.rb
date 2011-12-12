@@ -26,7 +26,8 @@ class Maths < BotPlugin
     return nil
   rescue => e
     handleError(e)
-    return sayf(e)
+    m.reply(e)
+    return nil
   end
 
   def shuntInput(s)

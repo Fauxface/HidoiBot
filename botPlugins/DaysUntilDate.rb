@@ -21,7 +21,8 @@ class DaysUntilDate < BotPlugin
     return nil
   rescue => e
     handleError(e)
-    return sayf("Invalid date format. Enter any parsable date (eg. DDMMYY).")
+    m.reply("Invalid date format. Enter any parsable date (eg. DDMMYY).")
+    return nil
   end
 
   def parseDate(dateIn)

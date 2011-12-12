@@ -67,20 +67,6 @@ class BotPlugin
     s = s.gsub(/['"]/, '`')
   end
 
-  def sayf(s)
-    # Formats a string to be used in IRC.runPlugin's eval().
-    # Preferably use `m.reply` in plugins
-    # Formats a string in prepration for returns to the main bot
-    #
-    # Params:
-    # +s+:: Object to format. Will be converted into a String.
-
-    return "say '#{s}'"
-  end
-
-  # Alias for rbot style
-  alias :echo :sayf
-
   #######################
   # IRC text formatting #
   #######################
