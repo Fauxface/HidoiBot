@@ -122,6 +122,7 @@ def loadBotPlugins
 
   $loadSuccess, $loadFailure = 0, 0
   $failedPlugins, $loadedPlugins = Array.new, Array.new
+  $plugins = Hash.new
 
   pluginsFolder = "botPlugins"
   puts "Loading bot plugins..."
@@ -134,7 +135,7 @@ def loadBotPlugins
         # Plugin's filename should be the same as its class name
         # This is done to simplify things, as there is no easy way to extract the plugin's class name from inside the file
         botPluginName = filename.gsub(/\.rb$/, '')
-        eval("$#{botPluginName} = #{botPluginName}.new()")
+        $plugins[botPluginName] = Object.const_get(botPluginName).new
 
         $loadSuccess += 1
         $loadedPlugins.push(botPluginName)

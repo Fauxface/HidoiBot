@@ -508,11 +508,7 @@ class IRC
     # +plugin+:: The plugin to run.
     # +m+:: A +Message+.
 
-    if m != nil
-      runs = "$#{plugin}.main(m)"
-      returnData = eval(runs)
-    end
-
+    returnData = $plugins[plugin].main(m)
     eval(returnData) if returnData != nil
   rescue SyntaxError => e
     say "#{plugin}: Syntax error: #{e}"
