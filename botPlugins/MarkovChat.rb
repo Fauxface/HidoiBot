@@ -422,6 +422,8 @@ class MarkovChat < BotPlugin
       seed = seeds.each { |seed|
         next seed if @brain[seed] != nil && countSyllables(seed) <= 5
       }[0]
+
+      seed = @brain.keys.sample if seed == nil || countSyllables(seed) > 5
     else
       # Random seed if not given any
       seed = @brain.keys.sample
@@ -435,39 +437,30 @@ class MarkovChat < BotPlugin
       # Protection against infinite loops due to bad code
       while !terminate
         # So we don't alter the actual brain
-        curSeedOptions = @brain[seed]
+        curSeedOptions = @brain[seed].clone if @brain[seed] != nil
         newSeed = false
 
         while !newSeed && !terminate
-          if sentence.size > 19 || line > 2
-            # 5 + 7 + 5 + 2x '\n' == 19
-            # Line count starts from 0
-            terminate = true
+          # Get next chain
+          if curSeedOptions == nil
+            # Exhausted our current options, get a new seed and its options
+            newSeed = true
+            oldSeed = seed
+
+            # Try to get a new seed from its current options
+            seed = seeds.each { |seed|
+              next seed if @brain[seed] != nil && countSyllables(seed) <= 5 && seed != oldSeed
+            }[0]
+
+            seed = @brain.keys.sample if seed == oldSeed # New random seed if we cannot find an alternative
           else
-            if curSeedOptions == nil
-              # Exhausted our current options, get a new seed and its options
-              word = nil
-              newSeed = true
-              oldSeed = seed
+            # Else, get a random word
+            word = curSeedOptions.keys.sample
 
-              # Try to get a new seed from its current options
-              seed = seeds.each { |seed|
-                next seed if @brain[seed] != nil && countSyllables(seed) <= 5 && seed != oldSeed
-              }[0]
-
-              seed = @brain.keys.sample if seed == oldSeed # New random seed if we cannot find an alternative
-            else
-              # Else, get a random word
-              word = curSeedOptions.keys.sample
-            end
-
-            if word != nil
+            if !newSeed && line <= 2 && word != nil
               # Remove first word
-              if word.split(' ').size > 1
-                originalWord = word
-                word = word.split(' ').drop(1).join(' ')
-              end
-
+              originalWord = word
+              word = word.split(' ').drop(1).join(' ')
               syllables = countSyllablesInSentence(word)
 
               # Add it to our haiku
@@ -479,39 +472,51 @@ class MarkovChat < BotPlugin
                 sentence.push(word)
                 lineSyllableCount += syllables
               else
-                # Remove bad chain from options
-                if curSeedOptions.keys.size == 1
-                  # !-Hack-! For some reason .delete doesn't seem to work sometimes
-                  curSeedOptions = nil
-                else
-                  curSeedOptions.delete(originalWord)
-                end
+                curSeedOptions.delete(originalWord)
+                curSeedOptions = nil if curSeedOptions.size == 0
               end
             end
+          end
 
-            # Check for structure
-            if (lineSyllableCount == 4 && line != 1) ||
-               (lineSyllableCount == 6 && line == 1)
-              # We do this because monosyllabic words are impossible in a word chain of length two
-              #seed = ["and", "so", "then", "but"].sort_by{ rand }.first # Pick random filler
+          # Check for structure
+          if (lineSyllableCount == 6 - @chainLength && line != 1) ||
+             (lineSyllableCount == 8 - @chainLength && line == 1)
+            # We do this because monosyllabic words are impossible in a word chain of length two
+            # !-Cheap trick-!
+
+            tries = 0
+            maxTries = 15
+
+            begin
               seed = @brain.keys.sample # Pick random new seed
-              newSeed = true
-              sentence.push(seed).push("\n")
-              lineSyllableCount = 0
-              line += 1
-            elsif (lineSyllableCount == 5 && line != 1) ||
-                  (lineSyllableCount == 7 && line == 1)
-              # Line has hit its quota
-              sentence.push("\n")
-              lineSyllableCount = 0
-              line += 1
-            end
+              tries += 1
+            end while countSyllables(seed) != 1 && tries <= maxTries
+
+            seed = ["and", "so", "then", "but"].sort_by{ rand }.first if tries > maxTries # Pick random filler if failed
+            newSeed = true
+            sentence.push(seed).push("\n")
+            lineSyllableCount = 0
+            line += 1
+          elsif (lineSyllableCount == 5 && line != 1) ||
+                (lineSyllableCount == 7 && line == 1)
+            # Line has hit its quota
+            sentence.push("\n")
+            lineSyllableCount = 0
+            line += 1
+          elsif sentence.size > 19 || line > 2
+            # 5 + 7 + 5 + 2x '\n' == 19
+            # Line count starts from 0
+            terminate = true
           end
         end
       end
     end
 
     return cleanOutput(sentence.join(' ').gsub(" \n ", "\n").gsub(/  +/,' '))
+  rescue => e
+      handleError(e)
+      puts "MarkovChat: Haiku derped out -- seed: #{seed}, brain[seed]: #{@brain[seed]}"
+      return @noRespMsg
   end
 
   def countSyllables(text)
