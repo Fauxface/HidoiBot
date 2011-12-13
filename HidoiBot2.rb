@@ -25,15 +25,18 @@ def taskManager
   loadCoreModules
 
   # Create bot objects
-  bots = Array.new
+  $bots = Array.new
   botThreads = Array.new
 
   serverSettings["servers"].each { |server|
-    bots.push(IRC.new(server, botSettings, authSettings)) if server["active"]
+    $bots.push(IRC.new(server, botSettings, authSettings)) if server["active"]
   }
+  
+  # Load bot plugins
+  loadBotPlugins
 
   # Create the bot threads
-  bots.each { |bot|
+  $bots.each { |bot|
     botThreads.push(Thread.new(bot.main))
   }
 
@@ -41,9 +44,6 @@ def taskManager
   botThreads.each { |thread|
     thread.join
   }
-
-  # Load bot plugins
-  loadBotPlugins
 
   # WEBrick server
   startWebrickServer(botSettings) if botSettings["useWebrick"]

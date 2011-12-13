@@ -22,13 +22,17 @@ class BotPlugin
     if hook.class == Array && hook.size > 1
       # If multiple hooks
       hook.each { |i|
-        $bot1.doPluginMapping(i, botModuleName, processEvery)
-        $bot1.doPluginHelp(i, help[0]) if help[0] != nil
+        $bots.each { |bot|
+          bot.doPluginMapping(i, botModuleName, processEvery)
+          bot.doPluginHelp(i, help[0]) if help[0] != nil
+        }
       }
     else
       # If single hook
-      $bot1.doPluginMapping(hook, botModuleName, processEvery)
-      $bot1.doPluginHelp(hook, help[0]) if help[0] != nil
+      $bots.each { |bot|
+        bot.doPluginMapping(hook, botModuleName, processEvery)
+        bot.doPluginHelp(hook, help[0]) if help[0] != nil
+      }
     end
 
     puts "Bot plugin #{botModuleName} loaded."
