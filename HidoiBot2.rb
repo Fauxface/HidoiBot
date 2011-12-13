@@ -14,38 +14,33 @@ BOT_STARTUP_TIME = Time.now
 
 def taskManager
   # Multiple servers are NOT supported now, run multiple instances to make sure everything runs right.
-  # However, if you really really really still want to do it, you can create more bot objects.
+  # Plugins are not written to handle threads yet!
 
-  # Load local config
+  # Load local, server, auth config
   botSettings = loadSettings('botConfig.json')
-
-  # Load server config
   serverSettings = loadSettings('serverConfig.json')
-
-  # Load auth config
   authSettings = loadSettings('authConfig.json')
 
   # Load core modules
   loadCoreModules
 
   # Create bot objects
-  $bots = [IRC.new(serverSettings["servers"][0], botSettings, authSettings)]
-  $bot1 = $bots[0] # Clean this up
+  bots = Array.new
+  botThreads = Array.new
 
-  #for serverdetails size
-  #eval create bots
-  #create array of bot names
-  #dobotsmappings
+  serverSettings["servers"].each { |server|
+    bots.push(IRC.new(server, botSettings, authSettings)) if server["active"]
+  }
 
-  #$bots = [{'name' => 'bot1', 'details' => serverDetails}]
+  # Create the bot threads
+  bots.each { |bot|
+    botThreads.push(Thread.new(bot.main))
+  }
 
-  # Create bots
-  #$bots.each{ |name|
-  #    eval('$' + name) = IRC.new(serverDetails)
-  #    eval('$' + name + 'MainThread') = Thread.new{eval(name).main}
-  #    eval('$' + name + 'TimerThread') = Thread.new{eval(name).timer}
-
-  #}
+  # Start the bot threads
+  botThreads.each { |thread|
+    thread.join
+  }
 
   # Load bot plugins
   loadBotPlugins
@@ -55,18 +50,15 @@ def taskManager
 
   # For convenience and compatibility
   $botUrl = botSettings["botUrl"]
-
-  # Create bot threads
-  $bot1MainThread = Thread.new{$bot1.main}
-
-  # Start bot threads
-  $bot1MainThread.join
 rescue => e
   handleError(e)
 end
 
 def startWebrickServer(botSettings)
   # Starts WEBrick with public as the root directory.
+  #
+  # Params:
+  # +botSettings+:: Settings +Hash+ containing settings for WEBrick.
 
   extend WebUI
 
@@ -76,7 +68,10 @@ def startWebrickServer(botSettings)
 end
 
 def loadSettings(file)
-  # Loads persistent plugin settings.
+  # Loads bot settings.
+  #
+  # Params:
+  # +file+:: Filename of file in cfg to load
 
   configPath = 'cfg'
   s = File.open("#{configPath}/#{file}", "a+") { |f|
@@ -90,7 +85,10 @@ rescue => e
 end
 
 def saveSettings(file, settings)
-  # Saves persistent plugin settings.
+  # Saves bot settings.
+  #
+  # Params:
+  # +file+:: Filename of file in cfg to load
 
   configPath = 'cfg'
   File.open("#{configPath}/#{file}", "w") { |f|
@@ -139,12 +137,7 @@ def loadBotPlugins
 
         $loadSuccess += 1
         $loadedPlugins.push(botPluginName)
-      rescue => e
-        $loadFailure += 1
-        $failedPlugins.push(filename)
-        puts "#{filename} failed to load:"
-        handleError(e)
-      rescue SyntaxError => e
+      rescue Exception => e
         $loadFailure += 1
         $failedPlugins.push(filename)
         puts "#{filename} failed to load:"
@@ -165,10 +158,10 @@ def consoleInput
   # Evaluates console input.
   # Usage: type '/<$botName.method>' in the console
 
-  if @console != true
+  if !@consoleOn
     Thread.new do
+      @consoleOn = true
       loop do
-        @console = true
         consoleInput = nil
 
         while consoleInput == nil
@@ -185,8 +178,9 @@ def consoleInput
       end
     end
   end
-rescue => e
+rescue Exception => e
   handleError(e)
+  @consoleOn = false
   retry
 end
 
@@ -200,5 +194,6 @@ def handleError(e)
   puts e.backtrace
 end
 
+# Start the bot
 consoleInput
 taskManager

@@ -1,6 +1,7 @@
 {
     "servers": [
         {
+            "active": true,
             "serverGroup": "Rizon",
             "hostname": "irc.rizon.org",
             "port": "6697",
@@ -12,6 +13,7 @@
         },
         
         {
+            "active": false,
             "serverGroup": "SomeServer",
             "hostname": "irc.someServer.org",
             "port": "6697",
