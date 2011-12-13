@@ -158,29 +158,25 @@ def consoleInput
   # Evaluates console input.
   # Usage: type '/<$botName.method>' in the console
 
-  if !@consoleOn
-    Thread.new do
-      @consoleOn = true
-      loop do
-        consoleInput = nil
+  Thread.new do
+    loop do
+      consoleInput = nil
 
-        while consoleInput == nil
-          consoleInput = STDIN.gets.chomp
-        end
-
-        if consoleInput[0] == '/'
-          consoleInput[0] = ''
-          puts "Evaluating console input: #{consoleInput}"
-          eval(consoleInput)
-        end
-
-        consoleInput = nil
+      while consoleInput == nil
+        consoleInput = STDIN.gets.chomp
       end
+
+      if consoleInput[0] == '/'
+        consoleInput[0] = ''
+        puts "Evaluating console input: #{consoleInput}"
+        eval(consoleInput)
+      end
+
+      consoleInput = nil
     end
   end
 rescue Exception => e
   handleError(e)
-  @consoleOn = false
   retry
 end
 
