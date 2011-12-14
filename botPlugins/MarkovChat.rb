@@ -316,7 +316,8 @@ class MarkovChat < BotPlugin
     s = s.gsub(/(http(s?)\:)([\/|.|\w|\s|\:|~]|-)*\..*/i, '')
 
     # Whitespace
-    s = s.gsub(/(  +|^ | $|\t|\n|\r)/, ' ')
+    s = s.gsub(/ +/, '')
+    s = s.gsub(/(\t|\n|\r)/, '')
     s = s.lstrip
     s = s.rstrip
 
