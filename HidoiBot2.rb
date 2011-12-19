@@ -31,7 +31,7 @@ def taskManager
   serverSettings["servers"].each { |server|
     $bots.push(IRC.new(server, botSettings, authSettings)) if server["active"]
   }
-  
+
   # Load bot plugins
   loadBotPlugins
 
@@ -118,7 +118,6 @@ end
 def loadBotPlugins
   # Loads .rb files found in botPlugin.
 
-  $loadSuccess, $loadFailure = 0, 0
   $failedPlugins, $loadedPlugins = Array.new, Array.new
   $plugins = Hash.new
 
@@ -134,11 +133,8 @@ def loadBotPlugins
         # This is done to simplify things, as there is no easy way to extract the plugin's class name from inside the file
         botPluginName = filename.gsub(/\.rb$/, '')
         $plugins[botPluginName] = Object.const_get(botPluginName).new
-
-        $loadSuccess += 1
         $loadedPlugins.push(botPluginName)
       rescue Exception => e
-        $loadFailure += 1
         $failedPlugins.push(filename)
         puts "#{filename} failed to load:"
         handleError(e)
@@ -148,7 +144,7 @@ def loadBotPlugins
     end
   }
 
-  puts "Plugins loaded - Successful: #{$loadSuccess} Failed: #{$loadFailure}"
+  puts "Plugins loaded - Successful: #{$loadedPlugins.size} Failed: #{$failedPlugins.size}"
   puts "Failed to load:\n#{$failedPlugins.join("\n")}" if $failedPlugins.size > 0
 rescue => e
   handleError(e)

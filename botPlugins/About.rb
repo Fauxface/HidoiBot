@@ -49,7 +49,7 @@ class About < BotPlugin
   end
 
   def plugins
-    rs = "Plugins loaded - Successful: #{$loadSuccess} Failed: #{$loadFailure}"
+    rs = "Plugins loaded - Successful: #{$loadedPlugins.size}; Failed: #{$failedPlugins.size}"
     rs += "\nLoaded plugins: #{$loadedPlugins.join(", ")}" if $loadedPlugins.size > 0
     rs += "\nFailed to load: #{$failedPlugins.join(", ")}" if $failedPlugins.size > 0
 
