@@ -75,12 +75,12 @@ class Reminder < BotPlugin
     # Checking for authorisation
     if user == 'me' || user == m.sender && occurrence != 'recurring'
       # No auth required for single event for self
-      m.origin.addEvent(m.sender, type, parsedTime.to_i, occurrence, occurrenceOffset, message)
+      m.origin.timer.addEvent(m.sender, type, parsedTime.to_i, occurrence, occurrenceOffset, m.origin, message)
       m.reply(@reminderAddedMessage)
 
     elsif m.authR(@requiredLevelForOthers)
       # Auth required for single/recurring event for other people
-      m.origin.addEvent(user, type, parsedTime.to_i, occurrence, occurrenceOffset, message)
+      m.origin.timer.addEvent(user, type, parsedTime.to_i, occurrence, occurrenceOffset, m.origin, message)
       m.reply(@reminderAddedMessage)
     end
   rescue => e
@@ -90,17 +90,17 @@ class Reminder < BotPlugin
   end
 
   def clearRecurring(m)
-    m.origin.deleteEventOccurrence('recurring')
+    m.origin.timer.deleteEventOccurrence('recurring')
     m.reply(@clearRecurringMessage)
   end
 
   def clearReminders(m)
-    m.origin.deleteEventType('reminder')
+    m.origin.timer.deleteEventType('reminder')
     m.reply(@clearAllMessage)
   end
 
   def clearMyReminders(m)
-    m.origin.deleteReminderUser(m.sender)
+    m.origin.timer.deleteReminderUser(m.sender)
     m.reply(@clearPersonalMessage)
   end
 
