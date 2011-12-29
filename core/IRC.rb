@@ -295,8 +295,7 @@ class IRC
     # +data+: A raw line received from the server.
 
     rawData = data
-    message = data.split(' :')
-    message = message[message.size - 1].chomp
+    message = data.split(' :').last.chomp
     data = data.split(' ')
 
     if data[0] == 'PING'
@@ -413,15 +412,15 @@ class IRC
     # +m+:: +Message+ to check for CTCP messages.
 
     case m.message
-    when /^[\001]PING(\s.+)?[\001]$/i
+    when /^[\x01]PING(\s.+)?[\x01]? ?$/i
       # CTCP PING
       puts "> CTCP PING from #{m.sender}"
       send "NOTICE #{m.sender} :\001PING#{$1}\001"
-    when /^[\001]VERSION[\001]?$/i
+    when /^[\x01]VERSION[\x01]? ?$/i
       # CTCP VERSION
       puts "> CTCP VERSION from #{m.sender}"
       send "NOTICE #{m.sender} :\001VERSION #{BOT_VERSION} - Ruby #{RUBY_VERSION}\001"
-    when /^[\001]TIME[\001]?$/i
+    when /^[\x01]TIME[\x01]? ?$/i
       # CTCP TIME
       puts "> CTCP TIME from #{m.sender}"
       send "NOTICE #{m.sender} :\001TIME #{Time.now}\001"
