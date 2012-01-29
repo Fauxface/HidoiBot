@@ -90,13 +90,13 @@ class ImageScraper < BotPlugin
   def urlDetection(m)
     # Currently only does image urls
     case m.message
-    when /(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp)) :nomirror/
+    when /(https?\:[\/|.|\w|\s|\:|~|\-|\%]*?\.(?:jpg|jpeg|gif|png|bmp)) :nomirror/
       # :nomirror after an image url to not save
       # one :nomirror stops scraping for the line even if there are other links
       type = nil
       puts "ImageScraper: Image detected, but not saved as requested."
     when /(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp))/
-      urls = m.message.scan(/(https?\:[\/|.|\w|\s|\:|~]*?\.(?:jpg|gif|png|bmp))/i)
+      urls = m.message.scan(/(https?\:[\/|.|\w|\s|\:|~|\-|\%]*?\.(?:jpg|jpeg|gif|png|bmp))/i)
       type = 'image'
       urls.each { |url|
         puts "ImageScraper: Image detected: #{url}"
