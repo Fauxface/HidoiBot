@@ -605,6 +605,8 @@ class IRC
 
     hostname = m.hostname
     password = m.message.gsub(/^auth /, '')
+    sha256 = Digest::SHA256.new
+    password =  Digest::SHA256.digest(password)
 
     if @passwordList[password] != nil
       authLevel = @passwordList[password]

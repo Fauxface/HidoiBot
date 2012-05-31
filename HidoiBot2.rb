@@ -4,6 +4,7 @@
 # Starts bot threads and loads plugins. Also has code for console input.
 
 require 'json'
+require 'digest'
 require 'openssl'
 require 'socket'
 require 'thread'
@@ -16,12 +17,21 @@ $shutdown = false
 
 def taskManager
   # Multiple servers are NOT supported now, run multiple instances to make sure everything runs right.
-  # Plugins are not written to handle threads yet!
 
   # Load local, server, auth config
   botSettings = loadSettings('botConfig.json')
   serverSettings = loadSettings('serverConfig.json')
   authSettings = loadSettings('authConfig.json')
+
+  # Rudimentarily hash passwords
+  hashedPasswords = Hash.new
+
+  authSettings["passwords"].each { |password, level|
+    hashedPassword = Digest::SHA256.digest(password)
+    hashedPasswords[hashedPassword] = level
+  }
+
+  authSettings["passwords"] = hashedPasswords
 
   # Load core modules
   loadCoreModules
