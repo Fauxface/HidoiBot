@@ -503,13 +503,12 @@ class IRC
   end
 
   def runPlugin(plugin, m)
-    # Calls main method of plugin and passes +Message+ m to it.
+    # Pushes plugin run call into plugin run queue. Queue calls main method of plugin and passes +Message+ m to it.
     #
     # Params:
     # +plugin+:: The plugin to run.
     # +m+:: A +Message+.
 
-    # $plugins[plugin].main(m)
     $runQueue.push({"plugin" => plugin, "m" => m})
   rescue SyntaxError => e
     say "#{plugin}: Syntax error: #{e}"
@@ -605,8 +604,7 @@ class IRC
 
     hostname = m.hostname
     password = m.message.gsub(/^auth /, '')
-    sha256 = Digest::SHA256.new
-    password =  Digest::SHA256.digest(password)
+    password = Digest::SHA256.digest(password)
 
     if @passwordList[password] != nil
       authLevel = @passwordList[password]
