@@ -6,11 +6,13 @@
 require 'json'
 require 'openssl'
 require 'socket'
+require 'thread'
 require 'timeout'
 require 'rubygems'
 
 BOT_VERSION = 'HidoiBot2.1'
 BOT_STARTUP_TIME = Time.now
+$shutdown = false
 
 def taskManager
   # Multiple servers are NOT supported now, run multiple instances to make sure everything runs right.
@@ -24,6 +26,9 @@ def taskManager
   # Load core modules
   loadCoreModules
 
+  # Create global run queue
+  $runQueue = Queue.new
+
   # Create bot objects
   $bots = Array.new
   botThreads = Array.new
@@ -34,6 +39,16 @@ def taskManager
 
   # Load bot plugins
   loadBotPlugins
+
+  # Start the run queue
+  Thread.new do
+    while !$shutdown do
+      if !$runQueue.empty?
+        toRun = $runQueue.pop
+        $plugins[toRun["plugin"]].main(toRun["m"])
+      end
+    end
+  end
 
   # Create the bot threads
   $bots.each { |bot|

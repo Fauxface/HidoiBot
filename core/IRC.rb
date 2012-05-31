@@ -57,7 +57,6 @@ class IRC
     @maxMessageLength = botInfo["maxMessageLength"] # TODO: Calculate this dynamically
     @messageSendDelay = botInfo["messageSendDelay"]
     # @channelInfo = Hash.new
-    $shutdown = false
 
     # Instance timer
     @timer = Timer.new
@@ -399,8 +398,10 @@ class IRC
     # Params:
     # +m+:: A +Message+ of type PRIVMSG.
 
+    m = m.clone
+    m.processEvery = true
+
     @pluginMapping["processEvery"].each{ |pluginName|
-      m.processEvery = true
       runPlugin(pluginName, m)
     }
   end
@@ -508,7 +509,8 @@ class IRC
     # +plugin+:: The plugin to run.
     # +m+:: A +Message+.
 
-    $plugins[plugin].main(m)
+    # $plugins[plugin].main(m)
+    $runQueue.push({"plugin" => plugin, "m" => m})
   rescue SyntaxError => e
     say "#{plugin}: Syntax error: #{e}"
     handleError(e)
