@@ -598,7 +598,7 @@ class IRC
   def auth(m)
     # Checks and authenticates a hostname if a correct password is given.
     # Will reply indicating success or failure.
-    # One password per authentication level.
+    # Multiple password per authentication level are acceptable.
     #
     # Params:
     # +m+:: A +Message+ to authenticate.
