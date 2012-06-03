@@ -9,7 +9,7 @@
 #   Plugin mapping
 #   Ping checks
 #
-# TODO: Whitelist/Blacklist, better authentication, better max message length, channel info
+# TODO: Whitelist/Blacklist, better authentication, better max message length
 
 class IRC
   attr_accessor :hostname
@@ -40,7 +40,7 @@ class IRC
     # Initialises variables related to bot operation.
     #
     # Params:
-    # +botInfo+:: A +Hash+ defined in cfg/botInfo.json containing bot settigns.
+    # +botInfo+:: A +Hash+ defined in /cfg/botInfo.json containing bot settings.
 
     # Plugin mapping
     @triggerMap = Hash.new
@@ -56,7 +56,7 @@ class IRC
     @serverReconnectDelay = botInfo["serverReconnectDelay"]
     @maxMessageLength = botInfo["maxMessageLength"] # TODO: Calculate this dynamically
     @messageSendDelay = botInfo["messageSendDelay"]
-    # @channelInfo = Hash.new
+    @channelInfo = Hash.new
 
     # Instance timer
     @timer = Timer.new
@@ -66,7 +66,7 @@ class IRC
     # Initialises variables related to server connection.
     #
     # Params:
-    # +serverInfo+:: A +Hash+ defined in cfg/serverInfo.rb containing bot and server information.
+    # +serverInfo+:: A +Hash+ defined in /cfg/serverInfo.rb containing bot and server information.
 
     @serverGroup = serverInfo["serverGroup"]
     @hostname = serverInfo["hostname"]
@@ -314,11 +314,22 @@ class IRC
       messageType = 'PRIVMSG'
       channel = data[2]
       authLevel = checkAuth(hostname)
+    elsif /^(JOIN|PART)$/ === data[1]
+      # JOIN and PARTs
+      data[0].slice(/^:(.+)!(.+)@(.+)/)
+      sender = $1
+      realname = $2
+      hostname = $3
+      messageType = data[1]
+      channel = data[2].gsub(/^:/, '')
     elsif /^\d+$/ === data[1]
       # If message type is numeric
       sender = data[0].delete(':')
       messageType = data[1]
-      authLevel, realname, hostname, channel = nil
+      rawData.slice(/(#.*) :/)
+      channel = $1
+      authLevel, realname, hostname = nil
+      message = {"setBy" => data[4], "setAt" => data[5]} if data[1] == '333'
     end
 
     m = Message.new
@@ -363,13 +374,52 @@ class IRC
       # When nickname is in use
       @nickname += '_'
       registerConnection
-    #when '332'
-      # Channel topic
-    #when '333'
-      # Channel topic details
-    #when '353'
-      # Channel users
+    when '332', '333', '353', 'JOIN', 'PART'
+      # Channel topic, channel topic details, channel users, joins and parts
+      handleChannel(m)
     end
+  end
+
+  def handleChannel(m)
+    # Handles a +Message+ of type 332, 333, 353, JOIN or PART which contains the channel topic.
+    #
+    # Params:
+    # +m+:: A +Message+ of type 332, 333, 353, JOIN or PART.
+
+    if @channelInfo["#{m.channel}"] == nil
+      @channelInfo["#{m.channel}"] = Hash.new
+      @channelInfo["#{m.channel}"]["topic"] = Hash.new
+      @channelInfo["#{m.channel}"]["users"] = Hash.new
+    end
+
+    case m.messageType
+    when '332'
+      @channelInfo["#{m.channel}"]["topic"]["topicMessage"] = m.message
+    when '333'
+      @channelInfo["#{m.channel}"]["topic"]["setBy"] = m.message["setBy"]
+      @channelInfo["#{m.channel}"]["topic"]["setAt"] = m.message["setAt"]
+    when '353'
+      # Add each username to the userlist
+      m.message.split(" ").each { |username|
+        @channelInfo["#{m.channel}"]["users"]["#{username}"] = Hash.new if @channelInfo["#{m.channel}"]["users"]["#{username}"] == nil
+        @channelInfo["#{m.channel}"]["users"]["#{username}"]["inChannel"] = true
+      }
+    when 'JOIN'
+      @channelInfo["#{m.channel}"]["users"]["#{m.sender}"] = Hash.new if @channelInfo["#{m.channel}"]["users"]["#{m.sender}"] == nil
+      user = @channelInfo["#{m.channel}"]["users"]["#{m.sender}"]
+      user["inChannel"] = true
+      user["joinTime"] = Time.now
+      user["realname"] = m.realname
+      user["hostname"] = m.hostname
+    when 'PART'
+      @channelInfo["#{m.channel}"]["users"]["#{m.sender}"] = Hash.new if @channelInfo["#{m.channel}"]["users"]["#{m.sender}"] == nil
+      user = @channelInfo["#{m.channel}"]["users"]["#{m.sender}"]
+      user["inChannel"] = false
+      user["partTime"] = Time.now
+      user["partMessage"] = m.message
+    end
+  rescue => e
+    handleError(e)
   end
 
   def handlePing(m)
