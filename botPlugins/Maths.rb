@@ -86,8 +86,6 @@ class Maths < BotPlugin
         stack.push(leftVal.send(expr.first, rightVal))
         expr.shift
       end
-
-        puts "RPN: Stack: #{stack.join(" ")} Expression: #{expr.join(" ")}"
     end
 
     return stack[0]
@@ -125,7 +123,7 @@ class Maths < BotPlugin
   end
 
   def isOperator?(c)
-    return /(\^|\*\*|\*|\/|\+|\-|\%|>|<|<=|>=|==)/ === c ? true : false
+    return /(\^|\*\*|\*|\/|\+|\-|\%|>|<|<=|>=|==)/ === c
   end
 
   def isNumber?(s)
@@ -133,24 +131,6 @@ class Maths < BotPlugin
   end
 
   def formatInput(s)
-    # Can be improved
-
-    # Split on spaces
-    #s.gsub!(/ /, '')
-    #s.gsub!('*', ' * ')
-    #s.gsub!('^', ' ** ')
-    #s.gsub!(' * * ', ' ** ')
-    #s.gsub!('+', ' + ')
-    #s.gsub!('-', ' - ')
-    #s.gsub!(/^ - /, '-') # '-' as a unary operator at beginning of string
-    #s.gsub!(' -  - ', ' + ') # Double negation
-    #s.gsub!('/', ' / ')
-    #s.gsub!('%', ' % ')
-    #s.gsub!('>', ' > ')
-    #s.gsub!('<', ' < ')
-    #s.gsub!(' > =', ' >= ')
-    #s.gsub!(' < =', ' <= ')
-    #s.gsub!('==', ' == ')
     s.gsub!('(', ' ( ')
     s.gsub!(')', ' ) ')
     s = s.split(' ')

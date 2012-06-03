@@ -7,9 +7,6 @@ class Pick < BotPlugin
     # Authorisations
     @reqPickAuth = 0
 
-    # Strings
-    @noAuthMsg = "You are not authorised for this."
-
     # Required plugin stuff
     name = self.class.name
     @hook = ['pick', 'pickone']
@@ -26,7 +23,7 @@ class Pick < BotPlugin
       parsedList = parseOptions(list)
       m.reply(pick(picks, parsedList))
     end
-    
+
     return nil
   rescue => e
     handleError(e)
@@ -36,10 +33,12 @@ class Pick < BotPlugin
   def pick(picks, list)
     pickItem = Array.new
 
-    for i in 0..picks - 1
-      pickNumber = rand(list.size)
-      pickItem.push(list[pickNumber])
-      list.delete_at(pickNumber)
+    picks.times do
+      if !list.empty?
+        pickNumber = rand(list.size)
+        pickItem.push(list[pickNumber])
+        list.delete_at(pickNumber)
+      end
     end
 
     return pickItem.join(', ')
