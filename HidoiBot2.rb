@@ -3,8 +3,8 @@
 # HidoiBot2.rb
 # Starts bot threads and loads plugins. Also has code for console input.
 
+require 'digest/sha2'
 require 'json'
-require 'digest'
 require 'openssl'
 require 'socket'
 require 'thread'
