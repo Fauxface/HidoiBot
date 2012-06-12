@@ -1,1 +1,1 @@
-{"active":true,"timeout":10,"trackedSites":["\\b.*youtube.com.*\\b","\\b.*www.google.com.*\\b"]}
+{"active":true,"timeout":10,"trackedSites":["http.*youtube.com.[^ ]*","http.*google.com.[^ ]*"]}

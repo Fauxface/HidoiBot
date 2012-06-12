@@ -12,7 +12,7 @@ class Entitle < BotPlugin
     @s = {
       'active' => true,
       'timeout' => 10,
-      'trackedSites' => ['\b.*youtube.com.*\b', '\b.*www.google.com.*\b']
+      'trackedSites' => ['http.*youtube.com.[^ ]*', 'http.*google.com.[^ ]*']
     }
 
     @settingsFile = "entitle/settings.json"
