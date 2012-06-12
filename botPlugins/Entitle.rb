@@ -1,4 +1,5 @@
-﻿# Ng Guoyou
+﻿# encoding: UTF-8
+# Ng Guoyou
 # Entitle.rb
 # (Automatically) gets titles of URLs, with filters.
 
@@ -102,7 +103,10 @@ class Entitle < BotPlugin
 
   def getTitle(url)
     puts "Entitle: Getting title of #{url}"
-    return Nokogiri::HTML(open(url)).at_css("title").text.gsub(/ *\n */, " ").lstrip.rstrip
+    html = open(url) # Work around bad unicode encoding
+    doc = Nokogiri::HTML(html.read)
+    doc.encoding = 'utf-8'
+    return doc.at_css("title").text.gsub(/ *\n */, " ").lstrip.rstrip
   end
 
   def getStatus
