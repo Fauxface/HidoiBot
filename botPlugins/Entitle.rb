@@ -57,13 +57,15 @@ class Entitle < BotPlugin
 
       when 'add'
         if m.authR(@reqAdminAuth)
-          addFilter(m) if m.authR(@reqAdminAuth)
+          addFilter(m)
           m.reply(getStatus)
         end
 
       when 'remove'
-        removeFilter(m) if m.authR(@reqAdminAuth)
-        m.reply(getStatus)
+        if m.authR(@reqAdminAuth)
+          removeFilter(m)
+          m.reply(getStatus)
+        end
 
       when 'query'
         m.reply(getTitle(m.args[1])) if m.authR(@reqQueryAuth)
