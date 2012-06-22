@@ -8,6 +8,7 @@ class MarkovChat < BotPlugin
   def initialize
     require 'json'
     require 'open-uri'
+    require 'iconv'
 
     # Default Persistent Settings
     @s = {
