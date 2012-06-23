@@ -57,6 +57,7 @@ def taskManager
         toRun = $runQueue.pop
         $plugins[toRun["plugin"]].main(toRun["m"])
       end
+      sleep 0.1
     end
   end
 
