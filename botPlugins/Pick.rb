@@ -7,9 +7,13 @@ class Pick < BotPlugin
     # Authorisations
     @reqPickAuth = 0
 
+    # Triggers
+    @shuffleTrigger = 'shuffle'
+    @pickTrigger = 'pick'
+
     # Required plugin stuff
     name = self.class.name
-    @hook = ['pick', 'pickone']
+    @hook = [@pickTrigger, @shuffleTrigger]
     processEvery = false
     help = "Usage: #{@hook} (1-9) <items, seprated by commas>\nFunction: Picks n items from a list."
     super(name, @hook, processEvery, help)
@@ -18,30 +22,23 @@ class Pick < BotPlugin
   def main(m)
     if m.authR(@reqPickAuth)
       list = m.stripTrigger
-      picks = m.args[0].to_i
-      !(/[1-9]/ === picks.to_s) ? picks = 1 : list.gsub!("#{picks.to_s} ", '') # No pick count given, reinsert picks which was actually an option
-      parsedList = parseOptions(list)
-      m.reply(pick(picks, parsedList))
+
+      case m.trigger
+      when @shuffleTrigger
+        rs = parseOptions(list).shuffle.join(", ")
+      when @pickTrigger
+        picks = m.args[0].to_i
+        !(/[0-9]/ === picks.to_s) ? picks = 1 : list.gsub!("#{picks.to_s} ", '') # No pick count given, reinsert picks which was actually a pick option
+        rs = parseOptions(list).sample(picks).join(", ")
+      end
+
+      m.reply(rs)
     end
 
     return nil
   rescue => e
     handleError(e)
     return nil
-  end
-
-  def pick(picks, list)
-    pickItem = Array.new
-
-    picks.times do
-      if !list.empty?
-        pickNumber = rand(list.size)
-        pickItem.push(list[pickNumber])
-        list.delete_at(pickNumber)
-      end
-    end
-
-    return pickItem.join(', ')
   end
 
   def parseOptions(s)
