@@ -10,26 +10,30 @@ class Pick < BotPlugin
     # Triggers
     @shuffleTrigger = 'shuffle'
     @pickTrigger = 'pick'
+    @pickOneTrigger = 'pickone'
 
     # Required plugin stuff
     name = self.class.name
-    @hook = [@pickTrigger, @shuffleTrigger]
+    @hook = [@pickTrigger, @shuffleTrigger, @pickOneTrigger]
     processEvery = false
-    help = "Usage: #{@hook} (1-9) <items, seprated by commas>\nFunction: Picks n items from a list."
+    help = "Usage: #{@hook} (number of picks) <items, seprated by commas>\nFunction: Picks n items from a list."
     super(name, @hook, processEvery, help)
   end
 
   def main(m)
     if m.authR(@reqPickAuth)
-      list = m.stripTrigger
+      list = parseOptions(m.stripTrigger)
 
       case m.trigger
       when @shuffleTrigger
-        rs = parseOptions(list).shuffle.join(", ")
+        rs = list.shuffle.join(", ")
       when @pickTrigger
-        picks = m.args[0].to_i
-        !(/[0-9]/ === picks.to_s) ? picks = 1 : list.gsub!("#{picks.to_s} ", '') # No pick count given, reinsert picks which was actually a pick option
-        rs = parseOptions(list).sample(picks).join(", ")
+        picks = m.args[0]
+        (/[0-9]/ === picks.to_s) ? list[0] = list[0].to_s.gsub("#{picks.to_s} ", '') : picks = 1  # If no pick count was given assume picks = 1
+        rs = list.sample(picks.to_i).join(", ")
+      when @pickOneTrigger
+        picks = 1
+        rs = list.sample(picks.to_i).join(", ")
       end
 
       m.reply(rs)
