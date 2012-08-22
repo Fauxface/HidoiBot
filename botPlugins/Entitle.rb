@@ -88,7 +88,7 @@ class Entitle < BotPlugin
       results = tempMessage.scan(Regexp.new(regex))
 
       if !results.empty?
-        results.each { |result|
+        results.uniq.each { |result|
           Thread.new do
             timeout(@s["timeout"]) do
               title = getTitle(result)
@@ -97,7 +97,7 @@ class Entitle < BotPlugin
           end
 
           # Remove matched URL to prevent double-counting
-          tempMessage.gsub!(result)
+          tempMessage.gsub!(result, '')
         }
       end
     }
