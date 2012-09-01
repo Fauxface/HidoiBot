@@ -32,7 +32,7 @@ class Wserver < BotPlugin
     host = m.args[0]
     http = Net::HTTP.new(host)
     http.read_timeout = 20
-    res = http.head(host)
+    res = http.head("/")
 
     case res.class
     when Net::HTTPRedirection, Net::HTTPMovedPermanently
