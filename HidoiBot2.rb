@@ -23,6 +23,9 @@ def taskManager
   serverSettings = loadSettings('serverConfig.json')
   authSettings = loadSettings('authConfig.json')
 
+  # For convenience and compatibility
+  $botUrl = botSettings["botUrl"]
+
   # Rudimentarily hash passwords
   hashedPasswords = Hash.new
 
@@ -73,9 +76,6 @@ def taskManager
 
   # WEBrick server
   startWebrickServer(botSettings) if botSettings["useWebrick"]
-
-  # For convenience and compatibility
-  $botUrl = botSettings["botUrl"]
 rescue => e
   handleError(e)
 end
