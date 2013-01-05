@@ -125,7 +125,7 @@ class MpcSync < BotPlugin
         puts "MpcSync: Listening on port #{@mpcListenPort}"
 
         while @cocked && !$shutdown
-          packet, sender = socket.recvfrom(10)
+          packet = socket.recvfrom(10)
 
           if packet == 'GO!'
             Net::HTTP.post_form(URI.parse(@mpcCommandAddress.to_s), { 'wm_command' => '887' })
@@ -181,7 +181,7 @@ class MpcSync < BotPlugin
 
   def nowPlaying
     doc = Nokogiri::HTML(open(@mpcPlayingAddress))
-    filepath = doc.search('//td[@colspan="4"]/nobr/a[1]').inner_text
+    filepath = doc.search('//td[@colspan="4"]/a[1]').inner_text
     filename = filepath.to_s.split('\\').last
     curTime = doc.search('//td[@id="time"]').inner_text
     length = doc.search('//td[@id="time"]/../td[3]').inner_text
@@ -191,7 +191,7 @@ class MpcSync < BotPlugin
     returnString = "#{statusString}: #{filename} [#{curTime}/#{length}]"
 
     return returnString
-  rescue => e
+  rescue
     return @cannotGetNpMessage
   end
 end
