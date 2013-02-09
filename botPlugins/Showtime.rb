@@ -70,7 +70,6 @@ class Showtime < BotPlugin
 
       0.upto([matching_keys.size, 3].min-1) { |i|
          rs.push(prettifyShow(shows[matching_keys[i]]))
-         puts shows[matching_keys[i]].to_s
       }
 
       return rs.join("\n")
