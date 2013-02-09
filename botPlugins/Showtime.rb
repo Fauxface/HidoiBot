@@ -1,0 +1,104 @@
+﻿# Ng Guoyou
+# Showtime.rb
+# Scrapes anime airing details off mahou Showtime! - http://www.mahou.org/Showtime/
+
+class Showtime < BotPlugin
+  require 'open-uri'
+  require 'nokogiri'
+
+  def initialize
+    # Authorisations
+    @reqQueryAuth = 0
+
+    # Strings
+    @noShowMsg = "No matching show was found."
+
+    # Required plugin stuff
+    name = self.class.name
+    hook = "showtime"
+    processEvery = false
+    help = "Usage: #{hook} <showregex>\nFunction: Returns airing details of matching anime (up to 3 matches) from mahou Showtime! - http://www.mahou.org/Showtime/."
+    super(name, hook, processEvery, help)
+  end
+
+  def main(m)
+    m.reply(getShowtime(m.stripTrigger)) if m.authR(@reqQueryAuth)
+    return nil
+  rescue => e
+    handleError(e)
+    return nil
+  end
+
+  def getShowtime(filter)
+    doc = Nokogiri::HTML(open('http://www.mahou.org/Showtime/'))
+    shows_raw = doc.xpath("//table[@summary='Currently Airing']//table/tr").to_a
+    # shift - 0 is table heading, get rid of it
+    shows_raw.shift
+    # Add shows starting soon
+    shows_starting_soon_raw = doc.xpath("//table[@summary='Starting Soon']//table/tr").to_a
+    shows_starting_soon_raw.shift
+    shows_raw.concat(shows_starting_soon_raw)
+
+    shows = Hash.new
+    shows_raw.each { |show|
+      begin
+        # Can you modernise your god damned site
+        show_obj = Show.new
+        show_obj.title        = show.children[2].children[0].to_s.strip
+        show_obj.season       = show.children[4].children[0].to_s.strip
+        show_obj.station      = show.children[6].children[0].to_s.strip
+        show_obj.company      = show.children[8].children[0].to_s.strip
+        show_obj.airtime      = show.children[10].children[0].to_s.strip
+        show_obj.eta          = show.children[12].children[0].to_s.strip
+        show_obj.episodes     = show.children[14].children[0].to_s.strip
+        show_obj.anidb_link   = show.children[16].children[1].get_attribute('href').to_s
+        website_link          = show.children[16].children[3].to_a
+        show_obj.website_link = website_link[0][1] if !website_link.empty?
+
+        shows["#{show_obj.title}"] = show_obj
+      rescue
+        next
+      end
+    }
+
+    matching_keys = shows.keys.grep(Regexp.new(filter, Regexp::IGNORECASE))
+
+    if matching_keys.empty?
+      return @noShowMsg
+    else
+      rs = Array.new
+
+      0.upto([matching_keys.size, 3].min-1) { |i|
+         rs.push(prettifyShow(shows[matching_keys[i]]))
+         puts shows[matching_keys[i]].to_s
+      }
+
+      return rs.join("\n")
+    end
+  rescue => e
+    handleError(e)
+    return nil
+  end
+
+  def prettifyShow(show)
+    # prettifyShow is dumped here instead of being in Show so it has access to bold()
+    return nil if (!show.is_a? Show)
+    return "#{bold(show.title)} airs in #{bold(show.eta)} on #{show.station} (#{show.airtime}) - #{show.website_link}"
+  end
+
+  class Show
+    attr_accessor :title
+    attr_accessor :season
+    attr_accessor :station
+    attr_accessor :company
+    attr_accessor :airtime
+    attr_accessor :eta
+    attr_accessor :episodes
+    attr_accessor :anidb_link
+    attr_accessor :website_link
+
+    def to_s
+      return [title, season, station, company, airtime, eta, episodes, anidb_link, website_link].join(", ")
+    end
+  end
+end
