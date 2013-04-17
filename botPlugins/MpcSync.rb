@@ -125,9 +125,9 @@ class MpcSync < BotPlugin
         puts "MpcSync: Listening on port #{@mpcListenPort}"
 
         while @cocked && !$shutdown
-          packet = socket.recvfrom(10)
+          message, addr = socket.recvfrom(10)
 
-          if packet == 'GO!'
+          if message == 'GO!'
             Net::HTTP.post_form(URI.parse(@mpcCommandAddress.to_s), { 'wm_command' => '887' })
             m.reply(@playingMessage)
             @cocked = false
