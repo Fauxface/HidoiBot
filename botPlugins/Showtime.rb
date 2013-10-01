@@ -49,10 +49,10 @@ class Showtime < BotPlugin
         show_obj.station      = show.children[6].children[0].to_s.strip
         show_obj.company      = show.children[8].children[0].to_s.strip
         show_obj.airtime      = show.children[10].children[0].to_s.strip
-        show_obj.eta          = show.children[12].children[0].to_s.strip
+        show_obj.eta          = is_eta?(show.children[12].children[0].to_s.strip) || is_eta?(show.children[16].children[0].to_s.strip)
         show_obj.episodes     = show.children[14].children[0].to_s.strip
-        show_obj.anidb_link   = show.children[16].children[1].get_attribute('href').to_s
-        website_link          = show.children[16].children[3].to_a
+        show_obj.anidb_link   = show.children[-2].children[1].get_attribute('href').to_s if !show.children[-2].children[1].nil?
+        website_link          = show.children[-2].children[3].to_a  if !show.children[-2].children[3].nil?
         show_obj.website_link = website_link[0][1] if !website_link.empty?
 
         shows["#{show_obj.title}"] = show_obj
@@ -83,6 +83,10 @@ class Showtime < BotPlugin
     # prettifyShow is dumped here instead of being in Show so it has access to bold()
     return nil if (!show.is_a? Show)
     return "#{bold(show.title)} airs in #{bold(show.eta)} on #{show.station} (#{show.airtime}) - #{show.website_link}"
+  end
+
+  def is_eta?(s)
+    s =~ /\dd|\dh|\dm/ ? s : false
   end
 
   class Show
