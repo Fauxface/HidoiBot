@@ -259,8 +259,8 @@ class BotPlugin
 
   def loadSettings
     # Loads persistent plugin settings.
-    configPath = 'botPlugins/settings/' # Doesn't work as a class/instance variable?
-    File.open("#{configPath}/#{@settingsFile}", "a+") { |file|
+    configPath = File.join('botPlugins', 'settings', @settingsFile)
+    File.open(configPath, "a+") { |file|
       @s = JSON.parse(file.read)
     }
   rescue => e
@@ -269,8 +269,8 @@ class BotPlugin
 
   def saveSettings
     # Saves persistent plugin settings.
-    configPath = 'botPlugins/settings/' # Doesn't work as a class/instance variable?
-    File.open("#{configPath}/#{@settingsFile}", "w") { |file|
+    configPath = File.join('botPlugins', 'settings', @settingsFile)
+    File.open(configPath, "w") { |file|
       file.puts @s.to_json
     }
   rescue => e
