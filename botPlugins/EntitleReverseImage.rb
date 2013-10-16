@@ -56,7 +56,8 @@ class EntitleReverseImage < BotPlugin
       'timeout' => 10,
       'trackedSites' => ['http.*png', 'http.*gif', 'http.*jpg', 'http.*jpeg', 'http.*bmp'],
       'googleQueryString' => "https://www.google.com/searchbyimage?&image_url=",
-      'guessSelector' => ".qb-bmqc"
+      'guessSelector' => ".qb-bmqc",
+      'userAgent' => "Mozilla/5.0 (Windows NT 6.0; rv:20.0) Gecko/20100101 Firefox/20.0"
     }
 
     @settingsFile = "entitleri/settings.json"
@@ -152,7 +153,7 @@ class EntitleReverseImage < BotPlugin
 
     # Gets redirect by spoofing User-Agent
     html = open(@s["googleQueryString"] + url,
-        "User-Agent" => "Mozilla/5.0 (Windows NT 6.0; rv:20.0) Gecko/20100101 Firefox/20.0",
+        "User-Agent" => @s["userAgent"],
         allow_unsafe_redirects: true)
 
     doc = Nokogiri::HTML(html.read)
