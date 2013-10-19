@@ -100,7 +100,6 @@ class DDate < BotPlugin
 
     def initialize(date=Date.today, short_form=false)
       @year = date.year + YEAR_OFFSET
-      @st_tibbs = (date.leap? && date.month == 2 && date.day == 29)
 
       if date.leap? && date.yday >= 60
         @day_of_year = date.yday - 1
@@ -120,15 +119,18 @@ class DDate < BotPlugin
 
       day_index = (@day_of_year - 1) % 5
 
-      @weekday = short_form ? WEEKDAYS[day_index][:abbreviation]   : WEEKDAYS[day_index][:long_name]
-      @season  = short_form ? SEASONS[season_index][:abbreviation] : SEASONS[season_index][:long_name]
+      form = short_form ? :abbreviation : :long_name
+
+      @weekday = WEEKDAYS[day_index][form]
+      @season  = SEASONS[season_index][form]
       @holyday = SEASONS[season_index][:apostle_holyday] if @season_day == 5
       @holyday = SEASONS[season_index][:season_holyday]  if @season_day == 50
+      @st_tibs = (date.leap? && date.month == 2 && date.day == 29)
     end
 
     def to_s
-      if @st_tibbs
-        "Today is St. Tibb's Day, in the YOLD #{@year}"
+      if @st_tibs
+        "Today is St. Tib's Day, in the YOLD #{@year}"
       elsif @holyday
         "Today is #{@holyday}, in the YOLD #{@year}"
       else
