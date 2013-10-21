@@ -41,9 +41,9 @@ class DDate < BotPlugin
   end
 
   class DiscordianDate
-    DAYS_IN_SEASON = 73
-    YEAR_OFFSET = 1166
-    WEEKDAYS = [
+    @days_in_season = 73
+    @year_offset = 1166
+    @weekdays = [
       {
         long_name: "Sweetmorn",
         abbreviation: "SM"
@@ -65,7 +65,7 @@ class DDate < BotPlugin
         abbreviation: "SO"
       }
     ]
-    SEASONS = [
+    @seasons = [
       {
         long_name: 'Chaos',
         abbreviation: 'Chs',
@@ -99,7 +99,7 @@ class DDate < BotPlugin
     ]
 
     def initialize(date=Date.today, short_form=false)
-      @year = date.year + YEAR_OFFSET
+      @year = date.year + @year_offset
 
       if date.leap? && date.yday >= 60
         @day_of_year = date.yday - 1
@@ -107,24 +107,24 @@ class DDate < BotPlugin
         @day_of_year = date.yday
       end
 
-      @season_day = @day_of_year % DAYS_IN_SEASON
-      season_index = (@day_of_year / DAYS_IN_SEASON).to_i
+      @season_day = @day_of_year % @days_in_season
+      season_index = (@day_of_year / @days_in_season).to_i
 
       if @season_day == 0
         # Count from 1
-        @season_day = DAYS_IN_SEASON
+        @season_day = @days_in_season
         season_index -= 1
-        season_index = SEASONS.length - 1 if season_index < 0
+        season_index = @seasons.length - 1 if season_index < 0
       end
 
       day_index = (@day_of_year - 1) % 5
 
       form = short_form ? :abbreviation : :long_name
 
-      @weekday = WEEKDAYS[day_index][form]
-      @season  = SEASONS[season_index][form]
-      @holyday = SEASONS[season_index][:apostle_holyday] if @season_day == 5
-      @holyday = SEASONS[season_index][:season_holyday]  if @season_day == 50
+      @weekday = @weekdays[day_index][form]
+      @season  = @seasons[season_index][form]
+      @holyday = @seasons[season_index][:apostle_holyday] if @season_day == 5
+      @holyday = @seasons[season_index][:season_holyday]  if @season_day == 50
       @st_tibs = (date.leap? && date.month == 2 && date.day == 29)
     end
 
