@@ -7,12 +7,6 @@
 # For unsafe redirects http->https required for Google reverse image search by URL
 # Monkey patch OpenURI
 
-# Allow open-uri to follow unsafe redirects (i.e. https to http).
-# Relevant issue:
-# http://redmine.ruby-lang.org/issues/3719
-# Source here:
-# https://github.com/ruby/ruby/blob/trunk/lib/open-uri.rb
-
 class EntitleReverseImage < BotPlugin
   def initialize
     require 'nokogiri' # Gem

@@ -1,4 +1,11 @@
+# Allow open-uri to follow unsafe redirects (i.e. https to http).
+# Relevant issue:
+# http://redmine.ruby-lang.org/issues/3719
+# Source based off this:
+# https://github.com/ruby/ruby/blob/trunk/lib/open-uri.rb
+
 require 'open-uri'
+
 OpenURI.module_eval do
   class <<self
     alias_method :open_uri_original, :open_uri
