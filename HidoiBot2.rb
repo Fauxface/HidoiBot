@@ -36,6 +36,9 @@ def taskManager
 
   authSettings["passwords"] = hashedPasswords
 
+  # Load runtime monkey patches
+  loadPatches
+
   # Load core modules
   loadCoreModules
 
@@ -125,6 +128,20 @@ def saveSettings(file, settings)
 rescue => e
   handleError(e)
   return false
+end
+
+def loadPatches
+  # Loads .rb patches intended to be run only once.
+
+  patchDir = "patches"
+  Dir.foreach(patchDir) { |filename|
+    if File.extname(filename) == ".rb"
+      puts "Loading patch file: #{filename}"
+      load "#{patchDir}/#{filename}"
+    end
+  }
+rescue => e
+  handleError(e)
 end
 
 def loadCoreModules
