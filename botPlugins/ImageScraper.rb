@@ -120,13 +120,10 @@ class ImageScraper < BotPlugin
     # Saves and inserts imgUrl into image database. Calls generateLast if required.
     temporaryFilename = "#{@imageDirectory}/temp_#{Time.now.to_i}"
 
-    # IB's image-saving code; grab image from URL and save into a temporary file
     timeout(@s['imageScrapeTimeout']) do
-      File.open(temporaryFilename, 'wb') { |ofh|
-        open(imgUrl) { |ifh|
-          ofh.write(ifh.read(4096)) while !ifh.eof?
-        }
-      }
+      File.open(temporaryFilename, 'wb') do |f|
+        f.write(open(imgUrl).read)
+      end
     end
 
     # If file is 0 bytes, delete it
