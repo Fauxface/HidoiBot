@@ -41,64 +41,64 @@ class DDate < BotPlugin
   end
 
   class DiscordianDate
-    @days_in_season = 73
-    @year_offset = 1166
-    @weekdays = [
-      {
-        long_name: "Sweetmorn",
-        abbreviation: "SM"
-      },
-      {
-        long_name: "Boomtime",
-        abbreviation: "BT"
-      },
-      {
-        long_name: "Pungenday",
-        abbreviation: "PD"
-      },
-      {
-        long_name: "Prickle-Prickle",
-        abbreviation: "PP"
-      },
-      {
-        long_name: "Setting Orange",
-        abbreviation: "SO"
-      }
-    ]
-    @seasons = [
-      {
-        long_name: 'Chaos',
-        abbreviation: 'Chs',
-        apostle_holyday: 'Mungday',
-        season_holyday: 'Chaoflux'
-      },
-      {
-        long_name: 'Discord',
-        abbreviation: 'Dsc',
-        apostle_holyday: 'Mojoday',
-        season_holyday: 'Discoflux'
-      },
-      {
-        long_name: 'Confusion',
-        abbreviation: 'Cfn',
-        apostle_holyday: 'Syaday',
-        season_holyday: 'Confuflux'
-      },
-      {
-        long_name: 'Bureaucracy',
-        abbreviation: 'Bcy',
-        apostle_holyday: 'Zaraday',
-        season_holyday: 'Bureflux'
-      },
-      {
-        long_name: 'The Aftermath',
-        abbreviation: 'Afm',
-        apostle_holyday: 'Maladay',
-        season_holyday: 'Afflux'
-      }
-    ]
-
     def initialize(date=Date.today, short_form=false)
+      @days_in_season = 73
+      @year_offset = 1166
+      @weekdays = [
+        {
+          long_name: "Sweetmorn",
+          abbreviation: "SM"
+        },
+        {
+          long_name: "Boomtime",
+          abbreviation: "BT"
+        },
+        {
+          long_name: "Pungenday",
+          abbreviation: "PD"
+        },
+        {
+          long_name: "Prickle-Prickle",
+          abbreviation: "PP"
+        },
+        {
+          long_name: "Setting Orange",
+          abbreviation: "SO"
+        }
+      ]
+      @seasons = [
+        {
+          long_name: 'Chaos',
+          abbreviation: 'Chs',
+          apostle_holyday: 'Mungday',
+          season_holyday: 'Chaoflux'
+        },
+        {
+          long_name: 'Discord',
+          abbreviation: 'Dsc',
+          apostle_holyday: 'Mojoday',
+          season_holyday: 'Discoflux'
+        },
+        {
+          long_name: 'Confusion',
+          abbreviation: 'Cfn',
+          apostle_holyday: 'Syaday',
+          season_holyday: 'Confuflux'
+        },
+        {
+          long_name: 'Bureaucracy',
+          abbreviation: 'Bcy',
+          apostle_holyday: 'Zaraday',
+          season_holyday: 'Bureflux'
+        },
+        {
+          long_name: 'The Aftermath',
+          abbreviation: 'Afm',
+          apostle_holyday: 'Maladay',
+          season_holyday: 'Afflux'
+        }
+      ]
+
       @year = date.year + @year_offset
 
       if date.leap? && date.yday >= 60
