@@ -1,4 +1,4 @@
-# HidoiBot has been replaced by [Hudda](https://github.com/gyng/Huddat).
+# HidoiBot has been replaced by [Hudda](https://github.com/gyng/Hudda).
 
 Intro
 -----
