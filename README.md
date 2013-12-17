@@ -1,7 +1,4 @@
-HidoiBot
-========
-
-A rewrite of HidoiBot is in progress as [WaruiBot](https://github.com/gyng/WaruiBot).
+# HidoiBot has been replaced by [Hudda](https://github.com/gyng/Huddat).
 
 Intro
 -----
